@@ -1,5 +1,9 @@
+import { Download, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
+// Integration note: Use useReports() to fetch historical spending data
+// Generate charts from getMonthlySpending() and getCategoryTotals()
 export default function Reports() {
   const spendingTrends = [
     { month: "Jan", groceries: 500, dining: 250, transport: 180 },
@@ -21,9 +25,21 @@ export default function Reports() {
 
   return (
     <div className="p-8 space-y-8 animate-fade-in">
-      <div>
-        <h1 className="text-4xl font-bold mb-2">Reports & Analytics</h1>
-        <p className="text-muted-foreground">Insights into your spending patterns</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">Reports & Analytics</h1>
+          <p className="text-muted-foreground">Insights into your spending patterns</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline" className="border-accent/30 hover:bg-accent/10">
+            <Calendar className="w-5 h-5 mr-2" />
+            Date Range
+          </Button>
+          <Button className="bg-gradient-emerald hover:opacity-90">
+            <Download className="w-5 h-5 mr-2" />
+            Export PDF
+          </Button>
+        </div>
       </div>
 
       <div className="glass-card p-8 rounded-2xl animate-fade-in-up">

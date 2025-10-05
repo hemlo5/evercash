@@ -1,4 +1,4 @@
-import { LayoutDashboard, Wallet, Receipt, BarChart3, Settings } from "lucide-react";
+import { LayoutDashboard, Wallet, Receipt, BarChart3, Target, Users, Settings } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -16,6 +16,8 @@ const navItems = [
   { title: "Budgets", url: "/budgets", icon: Wallet },
   { title: "Transactions", url: "/transactions", icon: Receipt },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Goals", url: "/goals", icon: Target },
+  { title: "Sharing", url: "/sharing", icon: Users },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

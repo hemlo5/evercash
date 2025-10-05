@@ -1,9 +1,15 @@
-import { Search, Upload } from "lucide-react";
+import { useState } from "react";
+import { Search, Upload, Download, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TransactionItem } from "@/components/TransactionItem";
+import { BankSyncModal } from "@/components/BankSyncModal";
+import { Badge } from "@/components/ui/badge";
 
+// Integration note: Use useTransactions() from Actual with offline fallback
+// Implement pagination with getTransactions({ offset, limit })
 export default function Transactions() {
+  const [bankSyncOpen, setBankSyncOpen] = useState(false);
   const transactions = [
     { merchant: "Whole Foods", category: "shopping", amount: -125.50, date: "Today, 2:30 PM" },
     { merchant: "Shell Gas Station", category: "transport", amount: -45.00, date: "Today, 10:15 AM" },
@@ -24,21 +30,50 @@ export default function Transactions() {
         <p className="text-muted-foreground">View and manage all your transactions</p>
       </div>
 
+      {/* Sync Status Badge */}
+      <div className="flex items-center gap-3 animate-fade-in-up">
+        <Badge variant="outline" className="bg-accent/20 text-accent border-accent/30">
+          <span className="w-2 h-2 rounded-full bg-accent mr-1.5 animate-pulse"></span>
+          Synced 2 min ago
+        </Badge>
+        <Badge variant="outline">
+          243 transactions this month
+        </Badge>
+      </div>
+
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             placeholder="Search transactions..."
             className="pl-12 h-12 bg-muted/30 border-border/50 focus:border-accent/50 transition-colors"
+            aria-label="Search transactions"
           />
         </div>
-        <Button className="bg-gradient-emerald hover:opacity-90 transition-opacity h-12 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+        <Button
+          variant="outline"
+          className="h-12 border-accent/30 hover:bg-accent/10"
+        >
+          <Filter className="w-5 h-5 mr-2" />
+          Filter
+        </Button>
+        <Button
+          onClick={() => setBankSyncOpen(true)}
+          className="bg-gradient-emerald hover:opacity-90 transition-opacity h-12 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+        >
           <Upload className="w-5 h-5 mr-2" />
-          Import CSV
+          Import / Sync
         </Button>
       </div>
 
       <div className="glass-card p-6 rounded-2xl">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">All Transactions</h2>
+          <Button variant="ghost" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
         <div className="space-y-2">
           {transactions.map((transaction, index) => (
             <TransactionItem
@@ -48,6 +83,8 @@ export default function Transactions() {
           ))}
         </div>
       </div>
+
+      <BankSyncModal open={bankSyncOpen} onOpenChange={setBankSyncOpen} />
     </div>
   );
 }

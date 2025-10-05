@@ -1,7 +1,11 @@
-import { Coffee, ShoppingBag, Home, Car, Smartphone, Heart, Plus } from "lucide-react";
+import { Coffee, ShoppingBag, Home, Car, Smartphone, Heart, Plus, Trophy } from "lucide-react";
 import { BudgetEnvelope } from "@/components/BudgetEnvelope";
 import { Button } from "@/components/ui/button";
+import { AIInsightBadge } from "@/components/AIInsightBadge";
+import { StreakBadge } from "@/components/StreakBadge";
 
+// Integration note: Use useCategories() from Actual to fetch budget categories
+// Map to loot-core's category system with getCategoryGroups()
 export default function Budgets() {
   const envelopes = [
     { category: "Groceries", allocated: 600, spent: 425, icon: ShoppingBag },
@@ -23,6 +27,20 @@ export default function Budgets() {
           <Plus className="w-5 h-5 mr-2" />
           Add Envelope
         </Button>
+      </div>
+
+      {/* Gamification & AI Insights */}
+      <div className="flex flex-wrap gap-3 animate-fade-in-up">
+        <StreakBadge days={14} />
+        <AIInsightBadge
+          type="info"
+          message="Smart tip"
+          detail="You typically spend less on weekends. Schedule more activities during the week to save."
+        />
+        <div className="glass-card px-4 py-2 rounded-full border-accent/30 flex items-center gap-2">
+          <Trophy className="w-5 h-5 text-accent" />
+          <span className="text-sm font-semibold">5 envelopes on track</span>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import Budgets from "./pages/Budgets";
 import Transactions from "./pages/Transactions";
 import Reports from "./pages/Reports";
+import Goals from "./pages/Goals";
+import Sharing from "./pages/Sharing";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -29,6 +31,8 @@ const App = () => (
                 <Route path="/budgets" element={<Budgets />} />
                 <Route path="/transactions" element={<Transactions />} />
                 <Route path="/reports" element={<Reports />} />
+                <Route path="/goals" element={<Goals />} />
+                <Route path="/sharing" element={<Sharing />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
