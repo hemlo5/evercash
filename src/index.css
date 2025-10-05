@@ -8,54 +8,54 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Luxury dark theme with emerald accents */
-    --background: 222 47% 11%;
-    --foreground: 60 9% 98%;
+    /* Off-white/Beige theme with emerald green accents */
+    --background: 40 25% 96%;
+    --foreground: 220 13% 13%;
 
-    --card: 222 47% 14%;
-    --card-foreground: 60 9% 98%;
+    --card: 40 30% 98%;
+    --card-foreground: 220 13% 13%;
 
-    --popover: 222 47% 12%;
-    --popover-foreground: 60 9% 98%;
+    --popover: 40 30% 98%;
+    --popover-foreground: 220 13% 13%;
 
-    --primary: 60 9% 98%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 40 30% 98%;
 
-    --secondary: 160 84% 39%;
-    --secondary-foreground: 60 9% 98%;
+    --secondary: 160 60% 45%;
+    --secondary-foreground: 40 30% 98%;
 
-    --muted: 220 16% 22%;
-    --muted-foreground: 220 9% 65%;
+    --muted: 40 20% 90%;
+    --muted-foreground: 220 9% 46%;
 
     --accent: 160 84% 39%;
-    --accent-foreground: 60 9% 98%;
+    --accent-foreground: 40 30% 98%;
 
     --destructive: 0 84% 60%;
-    --destructive-foreground: 60 9% 98%;
+    --destructive-foreground: 40 30% 98%;
 
-    --border: 220 16% 22%;
-    --input: 220 16% 18%;
+    --border: 40 15% 88%;
+    --input: 40 20% 92%;
     --ring: 160 84% 39%;
 
     --radius: 1rem;
 
     /* Glassmorphism */
-    --glass-bg: 222 47% 14% / 0.4;
-    --glass-border: 160 84% 39% / 0.2;
+    --glass-bg: 40 30% 98% / 0.6;
+    --glass-border: 160 84% 39% / 0.15;
     
     /* Emerald gradients */
     --gradient-emerald: linear-gradient(135deg, hsl(160 84% 39%), hsl(160 84% 49%));
-    --gradient-emerald-subtle: linear-gradient(135deg, hsl(160 84% 39% / 0.1), hsl(160 84% 49% / 0.2));
-    --glow-emerald: 0 0 20px hsl(160 84% 39% / 0.3);
+    --gradient-emerald-subtle: linear-gradient(135deg, hsl(160 84% 39% / 0.08), hsl(160 84% 49% / 0.12));
+    --glow-emerald: 0 0 20px hsl(160 84% 39% / 0.25);
     
     /* Sidebar */
-    --sidebar-background: 222 47% 10%;
-    --sidebar-foreground: 60 9% 98%;
+    --sidebar-background: 40 30% 98%;
+    --sidebar-foreground: 220 13% 13%;
     --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 60 9% 98%;
-    --sidebar-accent: 220 16% 18%;
-    --sidebar-accent-foreground: 60 9% 98%;
-    --sidebar-border: 220 16% 22%;
+    --sidebar-primary-foreground: 40 30% 98%;
+    --sidebar-accent: 40 25% 93%;
+    --sidebar-accent-foreground: 220 13% 13%;
+    --sidebar-border: 40 15% 88%;
     --sidebar-ring: 160 84% 39%;
     
     /* Animations */
