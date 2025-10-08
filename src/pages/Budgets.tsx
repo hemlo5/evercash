@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { AIInsightBadge } from "@/components/AIInsightBadge";
 import { StreakBadge } from "@/components/StreakBadge";
 import { useApi } from "@/contexts/ApiContext";
-import { toast } from "sonner";
+import { formatCurrency, parseCurrencyInput } from "@/lib/currency";`nimport { toast } from "sonner";
 import type { BudgetMonth, CategoryGroup } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import {
