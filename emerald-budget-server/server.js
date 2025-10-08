@@ -1,47 +1,75 @@
-// Simple backend server for Emerald Budget
+// Emerald Budget Secure Server - Production-Grade
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const csrf = require('csurf');
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
 const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 require('dotenv').config();
+
+// Import security configuration
+const {
+  config: securityConfig,
+  generateTokens,
+  verifyToken,
+  hashPassword,
+  verifyPassword,
+  generateNonce,
+  getCSPConfig,
+  generateSessionToken,
+  httpsRedirect
+} = require('./security-config');
 
 const app = express();
 const PORT = process.env.PORT || 5006;
 
-// Security middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "http://localhost:*"],
-    },
-  },
-  crossOriginEmbedderPolicy: false,
-}));
+// HTTPS redirect for production
+app.use(httpsRedirect);
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
+// Generate nonce for each request
+app.use((req, res, next) => {
+  res.locals.nonce = generateNonce();
+  next();
 });
 
-app.use(limiter);
-
-// CORS configuration
-app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
-  credentials: true
+// Security middleware with CSP nonces
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: (req, res) => getCSPConfig(res.locals.nonce)
+  },
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
 }));
+
+// Cookie parser for CSRF
+app.use(cookieParser());
+
+// Session configuration
+app.use(session({
+  secret: securityConfig.session.secret,
+  resave: false,
+  saveUninitialized: false,
+  cookie: securityConfig.session,
+  name: 'emerald.sid'
+}));
+
+// Rate limiting - different limits for auth vs general endpoints
+const authLimiter = rateLimit(securityConfig.rateLimit.auth);
+const generalLimiter = rateLimit(securityConfig.rateLimit.general);
+
+// Apply general limiter to all routes
+app.use(generalLimiter);
+
+// CORS configuration with origin validation
+app.use(cors(securityConfig.cors));
 
 app.use(express.json());
 
