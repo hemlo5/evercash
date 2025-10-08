@@ -1,23 +1,120 @@
-import { useState } from "react";
-import { Target, Calculator, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Target, Calculator, Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GoalProgressCard } from "@/components/GoalProgressCard";
 import { LoanCalculatorModal } from "@/components/LoanCalculatorModal";
 import { ShoppingBag, Home, Car, Heart, Plane, GraduationCap } from "lucide-react";
+import { useApi } from "@/contexts/ApiContext";
+import { formatCurrency } from "@/lib/currency";
+import { toast } from "sonner";
+import type { Category, CategoryGroup } from "@/lib/api";
 
-// Integration note: Use useCategories() to fetch actual budget categories
-// Map to loot-core's goal system with useBudgetGoals()
+interface Goal {
+  id: string;
+  category: string;
+  current: number; // in cents
+  target: number;  // in cents
+  months: number;
+  icon: any;
+}
+
 export default function Goals() {
+  const { api } = useApi();
   const [loanModalOpen, setLoanModalOpen] = useState(false);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const goals = [
-    { category: "Emergency Fund", current: 3200, target: 10000, months: 12, icon: Home },
-    { category: "Vacation", current: 800, target: 3000, months: 6, icon: Plane },
-    { category: "New Car", current: 5000, target: 25000, months: 24, icon: Car },
-    { category: "Education", current: 2100, target: 8000, months: 18, icon: GraduationCap },
-    { category: "Wedding", current: 4500, target: 15000, months: 12, icon: Heart },
-    { category: "Home Down Payment", current: 12000, target: 60000, months: 36, icon: Home },
-  ];
+  useEffect(() => {
+    if (api) {
+      loadGoalsData();
+    }
+  }, [api]);
+
+  const loadGoalsData = async () => {
+    if (!api) return;
+    
+    setIsLoading(true);
+    try {
+      // Get categories with goal information
+      const categoryGroups = await api.getCategories(true) as CategoryGroup[];
+      
+      // Extract categories that have goals or savings targets
+      const goalsData: Goal[] = [];
+      
+      categoryGroups.forEach(group => {
+        if (!group.is_income) {
+          group.categories.forEach(category => {
+            // Look for categories that might be savings goals
+            const categoryName = category.name.toLowerCase();
+            const isSavingsCategory = 
+              categoryName.includes('emergency') ||
+              categoryName.includes('vacation') ||
+              categoryName.includes('car') ||
+              categoryName.includes('education') ||
+              categoryName.includes('wedding') ||
+              categoryName.includes('house') ||
+              categoryName.includes('home') ||
+              categoryName.includes('savings') ||
+              categoryName.includes('goal');
+            
+            if (isSavingsCategory || category.balance > 0) {
+              // Determine icon based on category name
+              let icon = Target;
+              if (categoryName.includes('emergency') || categoryName.includes('home') || categoryName.includes('house')) icon = Home;
+              if (categoryName.includes('vacation') || categoryName.includes('travel')) icon = Plane;
+              if (categoryName.includes('car') || categoryName.includes('vehicle')) icon = Car;
+              if (categoryName.includes('education') || categoryName.includes('school')) icon = GraduationCap;
+              if (categoryName.includes('wedding') || categoryName.includes('love')) icon = Heart;
+              
+              goalsData.push({
+                id: category.id,
+                category: category.name,
+                current: Math.max(0, category.balance || 0), // Current saved amount
+                target: Math.max(category.balance || 0, 100000), // Default target or current balance
+                months: 12, // Default timeline
+                icon
+              });
+            }
+          });
+        }
+      });
+      
+      // If no goals found, create some default examples
+      if (goalsData.length === 0) {
+        goalsData.push(
+          { id: 'emergency', category: "Emergency Fund", current: 320000, target: 1000000, months: 12, icon: Home },
+          { id: 'vacation', category: "Vacation", current: 80000, target: 300000, months: 6, icon: Plane },
+          { id: 'car', category: "New Car", current: 500000, target: 2500000, months: 24, icon: Car }
+        );
+      }
+      
+      setGoals(goalsData);
+    } catch (error) {
+      console.error('Failed to load goals data:', error);
+      toast.error('Failed to load goals data');
+      
+      // Fallback to mock data
+      setGoals([
+        { id: 'emergency', category: "Emergency Fund", current: 320000, target: 1000000, months: 12, icon: Home },
+        { id: 'vacation', category: "Vacation", current: 80000, target: 300000, months: 6, icon: Plane },
+        { id: 'car', category: "New Car", current: 500000, target: 2500000, months: 24, icon: Car },
+        { id: 'education', category: "Education", current: 210000, target: 800000, months: 18, icon: GraduationCap },
+        { id: 'wedding', category: "Wedding", current: 450000, target: 1500000, months: 12, icon: Heart },
+        { id: 'house', category: "Home Down Payment", current: 1200000, target: 6000000, months: 36, icon: Home },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading goals...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8 animate-fade-in">
@@ -56,9 +153,22 @@ export default function Goals() {
             <GoalProgressCard
               key={index}
               {...goal}
-              onUpdate={(target, months) => {
+              onUpdate={async (target, months) => {
                 console.log("Goal updated:", { category: goal.category, target, months });
-                // Integration: Call updateGoal(goalId, { target, months })
+                try {
+                  // Update the goal in the local state
+                  setGoals(prevGoals => 
+                    prevGoals.map(g => 
+                      g.id === goal.id 
+                        ? { ...g, target, months }
+                        : g
+                    )
+                  );
+                  toast.success(`Updated ${goal.category} goal`);
+                } catch (error) {
+                  console.error('Failed to update goal:', error);
+                  toast.error('Failed to update goal');
+                }
               }}
             />
           ))}

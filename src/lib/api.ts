@@ -109,6 +109,7 @@ export interface Budget {
 export class ActualAPI {
   private config: ApiConfig;
   private initialized: boolean = false;
+  private token?: string;
   
   // In-memory data store for mock data
   private mockData = {
@@ -769,11 +770,80 @@ export class ActualAPI {
   }
 
   async closeAccount(id: string, transferAccountId?: string, transferCategoryId?: string): Promise<void> {
-    console.log('Closing account:', { id, transferAccountId, transferCategoryId });
+    try {
+      // Close the account by setting closed flag
+      const closeMessage = {
+        dataset: 'accounts',
+        row: { id, closed: 1 },
+        column: null,
+      };
+      
+      const messages = [closeMessage];
+      
+      // If transfer account is specified, move remaining balance
+      if (transferAccountId) {
+        // Get current account balance
+        const accounts = await this.getAccounts();
+        const account = accounts.find(a => a.id === id);
+        
+        if (account && account.balance !== 0) {
+          // Create transfer transaction
+          const transferTransaction = {
+            dataset: 'transactions',
+            row: {
+              id: `transfer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              account: id,
+              transfer_id: `transfer-to-${transferAccountId}`,
+              amount: -account.balance, // Negative to zero out the account
+              date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
+              notes: `Account closure transfer`,
+            },
+            column: null,
+          };
+          
+          const recipientTransaction = {
+            dataset: 'transactions',
+            row: {
+              id: `transfer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              account: transferAccountId,
+              transfer_id: `transfer-from-${id}`,
+              amount: account.balance, // Positive to receive the balance
+              date: new Date().toISOString().split('T')[0].replace(/-/g, ''),
+              notes: `Account closure transfer from ${account.name}`,
+            },
+            column: null,
+          };
+          
+          messages.push(transferTransaction, recipientTransaction);
+        }
+      }
+      
+      await this.request('/sync/sync', {
+        method: 'POST',
+        body: JSON.stringify({ messages }),
+      });
+    } catch (error) {
+      console.error('Failed to close account:', error);
+      throw error;
+    }
   }
 
   async reopenAccount(id: string): Promise<void> {
-    console.log('Reopening account:', id);
+    try {
+      const message = {
+        dataset: 'accounts',
+        row: { id, closed: 0 },
+        column: null,
+      };
+      
+      await this.request('/sync/sync', {
+        method: 'POST',
+        body: JSON.stringify({ messages: [message] }),
+      });
+    } catch (error) {
+      console.error('Failed to reopen account:', error);
+      throw error;
+    }
   }
 
   // Category Management
@@ -864,216 +934,6 @@ export class ActualAPI {
 
   async downloadBudget(syncId: string, password?: string): Promise<void> {
     console.log('Downloading budget:', { syncId, password: password ? '[HIDDEN]' : undefined });
-  }
-
-  // Server info
-  async getServerVersion(): Promise<string> {
-    try {
-      const response = await fetch(`${this.config.baseUrl}/`);
-      if (response.ok) {
-        const data = await response.json();
-        return data.version || '1.0.0';
-      }
-      return '1.0.0';
-    } catch (error) {
-      console.error('Failed to get server version:', error);
-      return '1.0.0';
-    }
-  }
-
-  // Account management
-  async getAccounts(): Promise<Account[]> {
-    try {
-      const response = await this.request<any>('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({
-          messages: [{ dataset: 'accounts', row: null, column: null }],
-        }),
-      });
-      const accounts = response?.messages?.find((m: any) => m.dataset === 'accounts')?.data || [];
-      return accounts.map((account: any) => ({
-        id: account.id || account.account_id,
-        name: account.name || 'Unnamed Account',
-        type: account.type || 'checking',
-        offbudget: account.offbudget === 1,
-        closed: account.closed === 1,
-        balance: account.balance || 0,
-        bank: account.bank,
-        account_sync_source: account.account_sync_source,
-      }));
-    } catch (error) {
-      console.error('Failed to get accounts:', error);
-      return [];
-    }
-  }
-
-  // Transaction management
-  async getTransactions(accountId?: string, startDate?: string, endDate?: string): Promise<Transaction[]> {
-    try {
-      const messages: any[] = [{ dataset: 'transactions', row: null, column: null }];
-      const response = await this.request<any>('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({ messages }),
-      });
-      const transactions = response?.messages?.find((m: any) => m.dataset === 'transactions')?.data || [];
-      return transactions
-        .filter((tx: any) => {
-          if (accountId && tx.account !== accountId) return false;
-          if (startDate && tx.date < startDate.replace(/-/g, '')) return false;
-          if (endDate && tx.date > endDate.replace(/-/g, '')) return false;
-          return true;
-        })
-        .map((tx: any) => ({
-          id: tx.id || tx.transaction_id,
-          account: tx.account,
-          payee: tx.payee || undefined,
-          payee_name: tx.payee_name || undefined,
-          imported_payee: tx.imported_payee || undefined,
-          category: tx.category || undefined,
-          date: tx.date,
-          amount: tx.amount,
-          notes: tx.notes || undefined,
-          imported_id: tx.imported_id || undefined,
-          transfer_id: tx.transfer_id || undefined,
-          cleared: tx.cleared === 1,
-          reconciled: tx.reconciled === 1,
-        }));
-    } catch (error) {
-      console.error('Failed to get transactions:', error);
-      return [];
-    }
-  }
-
-  async addTransactions(accountId: string, transactions: Partial<Transaction>[]): Promise<void> {
-    try {
-      const messages = transactions.map(tx => ({
-        dataset: 'transactions',
-        row: {
-          id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          account: accountId,
-          ...tx,
-          amount: tx.amount || 0,
-          date: tx.date || new Date().toISOString().split('T')[0],
-        },
-        column: null,
-      }));
-      await this.request('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({ messages }),
-      });
-    } catch (error) {
-      console.error('Failed to add transactions:', error);
-      throw error;
-    }
-  }
-
-  async updateTransaction(id: string, fields: Partial<Transaction>): Promise<void> {
-    try {
-      const message = {
-        dataset: 'transactions',
-        row: { id, ...fields },
-        column: null,
-      };
-      await this.request('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({ messages: [message] }),
-      });
-    } catch (error) {
-      console.error('Failed to update transaction:', error);
-      throw error;
-    }
-  }
-
-  async deleteTransaction(id: string): Promise<void> {
-    try {
-      const message = {
-        dataset: 'transactions',
-        row: { id, tombstone: 1 },
-        column: null,
-      };
-      await this.request('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({ messages: [message] }),
-      });
-    } catch (error) {
-      console.error('Failed to delete transaction:', error);
-      throw error;
-    }
-  }
-
-  // Payee management  
-  async getPayees(): Promise<Payee[]> {
-    try {
-      const response = await this.request<any>('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({
-          messages: [{ dataset: 'payees', row: null, column: null }],
-        }),
-      });
-      const payees = response?.messages?.find((m: any) => m.dataset === 'payees')?.data || [];
-      return payees.map((payee: any) => ({
-        id: payee.id || payee.payee_id,
-        name: payee.name || 'Unknown',
-        category: payee.category || undefined,
-        transfer_acct: payee.transfer_acct || undefined,
-      }));
-    } catch (error) {
-      console.error('Failed to get payees:', error);
-      return [];
-    }
-  }
-
-  // Category management
-  async getCategories(grouped?: boolean): Promise<Category[] | CategoryGroup[]> {
-    try {
-      const response = await this.request<any>('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({
-          messages: [
-            { dataset: 'categories', row: null, column: null },
-            { dataset: 'category_groups', row: null, column: null },
-          ],
-        }),
-      });
-      
-      const categories = response?.messages?.find((m: any) => m.dataset === 'categories')?.data || [];
-      const groups = response?.messages?.find((m: any) => m.dataset === 'category_groups')?.data || [];
-      
-      if (grouped && groups.length > 0) {
-        return groups.map((group: any) => ({
-          id: group.id,
-          name: group.name,
-          is_income: group.is_income === 1,
-          hidden: group.hidden === 1,
-          categories: categories
-            .filter((cat: any) => cat.cat_group === group.id)
-            .map((cat: any) => ({
-              id: cat.id,
-              name: cat.name,
-              group_id: cat.cat_group,
-              is_income: group.is_income === 1,
-              hidden: cat.hidden === 1,
-              budgeted: cat.budgeted || 0,
-              spent: cat.spent || 0,
-              balance: cat.balance || 0,
-            })),
-        }));
-      }
-      
-      return categories.map((cat: any) => ({
-        id: cat.id,
-        name: cat.name,
-        group_id: cat.cat_group,
-        is_income: cat.is_income === 1,
-        hidden: cat.hidden === 1,
-        budgeted: cat.budgeted || 0,
-        spent: cat.spent || 0,
-        balance: cat.balance || 0,
-      }));
-    } catch (error) {
-      console.error('Failed to get categories:', error);
-      return [];
-    }
   }
 }
 

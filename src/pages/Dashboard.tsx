@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useApi } from "@/contexts/ApiContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { formatCurrency, centsToDollars } from "@/lib/currency";
 import { toast } from "sonner";
 import type { Account as ApiAccount, Transaction as ApiTransaction } from "@/lib/api";
 
@@ -130,9 +131,7 @@ export default function Dashboard() {
     );
   }
 
-  // Helpers
-  const formatCurrency = (num: number) =>
-    num.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  // Note: formatCurrency is now imported from @/lib/currency
 
   // Map transactions to match TransactionItem component's expected props
   const mappedTransactions = transactions.map(tx => ({
@@ -208,7 +207,7 @@ export default function Dashboard() {
               return Object.entries(byPayee)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 3)
-                .map(([name, value]) => ({ name, value: formatCurrency(value / 100) }));
+                .map(([name, value]) => ({ name, value: formatCurrency(value) }));
             })()}
           />
           <StatCard
@@ -226,7 +225,7 @@ export default function Dashboard() {
               return Object.entries(byPayee)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 3)
-                .map(([name, value]) => ({ name, value: formatCurrency(value / 100) }));
+                .map(([name, value]) => ({ name, value: formatCurrency(value) }));
             })()}
           />
           <StatCard
@@ -243,7 +242,7 @@ export default function Dashboard() {
               return Object.entries(byCategory)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 3)
-                .map(([name, value]) => ({ name, value: formatCurrency(value / 100) }));
+                .map(([name, value]) => ({ name, value: formatCurrency(value) }));
             })()}
           />
         </div>
