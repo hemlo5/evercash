@@ -94,6 +94,7 @@ export default function Transactions() {
       
       const signedAmount = formData.type === 'expense' ? -sanitizedAmount : sanitizedAmount;
       await api.addTransactions(formData.account, [{
+        id: crypto.randomUUID(), // Use UUID instead of Date.now() to prevent race conditions
         payee: sanitizedPayee,
         category: formData.category,
         amount: Math.round(signedAmount * 100), // Convert to cents
