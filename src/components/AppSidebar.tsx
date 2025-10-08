@@ -1,4 +1,13 @@
-import { LayoutDashboard, Wallet, Receipt, BarChart3, Target, Users, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Wallet,
+  Building2,
+  Receipt,
+  BarChart3,
+  Target,
+  Users,
+  Settings
+} from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -13,6 +22,7 @@ import {
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
+  { title: "Accounts", url: "/accounts", icon: Building2 },
   { title: "Budgets", url: "/budgets", icon: Wallet },
   { title: "Transactions", url: "/transactions", icon: Receipt },
   { title: "Reports", url: "/reports", icon: BarChart3 },
@@ -27,12 +37,12 @@ export function AppSidebar() {
       <SidebarContent className="bg-sidebar">
         <div className="p-6 pb-4">
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-11 h-11 rounded-xl bg-gradient-emerald flex items-center justify-center font-bold text-lg shadow-md">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(0,255,0,0.4)] text-black">
               MB
             </div>
             <div>
               <h2 className="font-bold text-lg text-foreground">MyBudget</h2>
-              <p className="text-xs text-emerald-600 font-medium">Pro</p>
+              <p className="text-xs text-green-400 font-medium">Pro</p>
             </div>
           </div>
         </div>
@@ -51,8 +61,8 @@ export function AppSidebar() {
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                         isActive
-                          ? "bg-gradient-emerald text-white shadow-lg shadow-emerald-500/30 font-semibold"
-                          : "text-gray-800 hover:text-gray-900 hover:bg-emerald-50 font-medium"
+                          ? "bg-gradient-to-r from-green-500 to-green-400 text-black shadow-lg shadow-green-500/30 font-semibold"
+                          : "text-foreground hover:text-green-400 hover:bg-green-500/10 font-medium"
                       }`
                     }
                   >
@@ -66,14 +76,14 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <div className="mt-auto p-4">
-          <div className="bg-gradient-emerald-subtle border border-emerald-200 p-4 rounded-xl">
+          <div className="bg-gradient-to-br from-green-500/10 to-green-400/20 border border-green-500/30 p-4 rounded-xl shadow-[0_0_15px_rgba(0,255,0,0.2)]">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-gradient-emerald flex items-center justify-center shadow-md">
-                <span className="text-sm font-bold text-white">JD</span>
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center shadow-[0_0_10px_rgba(0,255,0,0.4)]">
+                <span className="text-sm font-bold text-black">JD</span>
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm truncate text-foreground">John Doe</p>
-                <p className="text-xs text-emerald-600 font-medium">Premium</p>
+                <p className="text-xs text-green-400 font-medium">Premium</p>
               </div>
             </div>
           </div>

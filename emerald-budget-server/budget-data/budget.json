@@ -1,0 +1,239 @@
+{
+  "accounts": [
+    {
+      "id": "acc-1759847338058-t9oyl2tlq",
+      "name": "nsfw",
+      "type": "investment",
+      "offbudget": 0,
+      "closed": 0,
+      "balance": 10000,
+      "starting_balance": 10000
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx-1759849123860-bqid9rjem",
+      "account": "acc-1759847338058-t9oyl2tlq",
+      "date": "20251007",
+      "amount": 22300,
+      "payee": "fcf",
+      "payee_name": null,
+      "category": "cat-utilities",
+      "notes": null,
+      "cleared": 0,
+      "reconciled": 0
+    },
+    {
+      "id": "tx-1759849141796-9r8ojx92l",
+      "account": "acc-1759847338058-t9oyl2tlq",
+      "date": "20251007",
+      "amount": -10000,
+      "payee": "323",
+      "payee_name": null,
+      "category": "cat-groceries",
+      "notes": "",
+      "cleared": 0,
+      "reconciled": 0
+    },
+    {
+      "id": "tx-1759855011759-eoxvz741b",
+      "account": "acc-1759847338058-t9oyl2tlq",
+      "date": "20251007",
+      "amount": -99900,
+      "payee": "789",
+      "payee_name": null,
+      "category": "cat-entertainment",
+      "notes": null,
+      "cleared": 0,
+      "reconciled": 0
+    },
+    {
+      "id": "tx-1759857265023-idlrnsnbv",
+      "account": "acc-1759847338058-t9oyl2tlq",
+      "date": "20251007",
+      "amount": -3200,
+      "payee": "dsfsfds",
+      "payee_name": null,
+      "category": "cat-utilities",
+      "notes": null,
+      "cleared": 0,
+      "reconciled": 0
+    },
+    {
+      "id": "tx-1759857804686-uelwyytyj",
+      "account": "",
+      "date": "20251007",
+      "amount": -6700,
+      "payee": "jjjj",
+      "payee_name": null,
+      "category": "dining",
+      "notes": null,
+      "cleared": 0,
+      "reconciled": 0
+    },
+    {
+      "id": "tx-1759901326933-115lnqo86",
+      "account": "",
+      "date": "20251008",
+      "amount": -2100,
+      "payee": "muhal",
+      "payee_name": null,
+      "category": "shopping",
+      "notes": null,
+      "cleared": 0,
+      "reconciled": 0
+    },
+    {
+      "id": "tx-1759901359178-f4ujej5ju",
+      "account": "",
+      "date": "20251008",
+      "amount": 200000,
+      "payee": "2okd",
+      "payee_name": null,
+      "category": "utilities",
+      "notes": null,
+      "cleared": 0,
+      "reconciled": 0
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-salary",
+      "name": "Salary",
+      "cat_group": "grp-income",
+      "is_income": 1
+    },
+    {
+      "id": "cat-other-income",
+      "name": "Other Income",
+      "cat_group": "grp-income",
+      "is_income": 1
+    },
+    {
+      "id": "cat-rent",
+      "name": "Rent/Mortgage",
+      "cat_group": "grp-essential",
+      "is_income": 0,
+      "budgeted": 2200
+    },
+    {
+      "id": "cat-utilities",
+      "name": "Utilities",
+      "cat_group": "grp-essential",
+      "is_income": 0
+    },
+    {
+      "id": "cat-groceries",
+      "name": "Groceries",
+      "cat_group": "grp-essential",
+      "is_income": 0
+    },
+    {
+      "id": "cat-transport",
+      "name": "Transportation",
+      "cat_group": "grp-essential",
+      "is_income": 0
+    },
+    {
+      "id": "cat-dining",
+      "name": "Dining Out",
+      "cat_group": "grp-lifestyle",
+      "is_income": 0
+    },
+    {
+      "id": "cat-entertainment",
+      "name": "Entertainment",
+      "cat_group": "grp-lifestyle",
+      "is_income": 0
+    },
+    {
+      "id": "cat-shopping",
+      "name": "Shopping",
+      "cat_group": "grp-lifestyle",
+      "is_income": 0
+    },
+    {
+      "id": "cat-emergency",
+      "name": "Emergency Fund",
+      "cat_group": "grp-savings",
+      "is_income": 0
+    },
+    {
+      "id": "cat-vacation",
+      "name": "Vacation",
+      "cat_group": "grp-savings",
+      "is_income": 0
+    },
+    {
+      "0": "c",
+      "1": "a",
+      "2": "t",
+      "3": "-",
+      "4": "r",
+      "5": "e",
+      "6": "n",
+      "7": "t"
+    }
+  ],
+  "categoryGroups": [
+    {
+      "id": "grp-income",
+      "name": "Income",
+      "is_income": 1,
+      "sort_order": 0
+    },
+    {
+      "id": "grp-essential",
+      "name": "Essential Expenses",
+      "is_income": 0,
+      "sort_order": 1
+    },
+    {
+      "id": "grp-lifestyle",
+      "name": "Lifestyle",
+      "is_income": 0,
+      "sort_order": 2
+    },
+    {
+      "id": "grp-savings",
+      "name": "Savings Goals",
+      "is_income": 0,
+      "sort_order": 3
+    }
+  ],
+  "payees": [
+    {
+      "id": "payee-1",
+      "name": "Walmart"
+    },
+    {
+      "id": "payee-2",
+      "name": "Amazon"
+    },
+    {
+      "id": "payee-3",
+      "name": "Starbucks"
+    },
+    {
+      "id": "payee-4",
+      "name": "Gas Station"
+    },
+    {
+      "id": "payee-5",
+      "name": "Electric Company"
+    }
+  ],
+  "budgets": {
+    "2025-10": {
+      "cat-rent": {
+        "budgeted": 2200,
+        "spent": 0,
+        "balance": 2200
+      }
+    }
+  },
+  "user": {
+    "token": null,
+    "password": null
+  }
+}

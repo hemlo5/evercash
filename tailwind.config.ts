@@ -88,8 +88,8 @@ export default {
           "100%": { opacity: "1", transform: "scale(1)" },
         },
         "glow-pulse": {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(16, 185, 129, 0.3)" },
-          "50%": { boxShadow: "0 0 40px rgba(16, 185, 129, 0.6)" },
+          "0%, 100%": { boxShadow: "0 0 20px hsl(158 64% 20% / 0.3)" },
+          "50%": { boxShadow: "0 0 40px hsl(158 64% 20% / 0.6)" },
         },
         "shimmer": {
           "0%": { backgroundPosition: "-200% center" },
@@ -106,8 +106,8 @@ export default {
         "shimmer": "shimmer 3s ease-in-out infinite",
       },
       backgroundImage: {
-        'gradient-emerald': 'linear-gradient(135deg, hsl(160 84% 39%), hsl(160 84% 49%))',
-        'gradient-emerald-subtle': 'linear-gradient(135deg, hsl(160 84% 39% / 0.1), hsl(160 84% 49% / 0.2))',
+        'gradient-emerald': 'linear-gradient(135deg, hsl(158 64% 20%), hsl(158 50% 25%))',
+        'gradient-emerald-subtle': 'linear-gradient(135deg, hsl(158 64% 20% / 0.1), hsl(158 50% 25% / 0.2))',
       },
     },
   },

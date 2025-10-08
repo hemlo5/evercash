@@ -35,7 +35,7 @@ export function TransactionItem({ merchant, category, amount, date }: Transactio
       </div>
       <div
         className={`text-lg font-bold ${
-          isPositive ? "text-accent" : "text-foreground"
+          isPositive ? "text-green-500" : "text-red-500"
         }`}
       >
         {isPositive ? "+" : "-"}${Math.abs(amount).toFixed(2)}
