@@ -20,12 +20,12 @@ export function ThemeToggle() {
         {theme === 'dark' ? (
           <>
             <Sun className="w-4 h-4" />
-            <span className="text-sm font-medium">Light</span>
+            <span className="text-sm font-medium hidden sm:inline">Light</span>
           </>
         ) : (
           <>
             <Moon className="w-4 h-4" />
-            <span className="text-sm font-medium">Dark</span>
+            <span className="text-sm font-medium hidden sm:inline">Dark</span>
           </>
         )}
       </div>

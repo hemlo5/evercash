@@ -23,6 +23,24 @@ export function formatCurrency(amountInCents: number): string {
 }
 
 /**
+ * Formats an amount in dollars to currency string
+ * @param amountInDollars - Amount in dollars (e.g., 500.00)
+ * @returns Formatted currency string (e.g., "$500.00")
+ */
+export function formatCurrencyFromDollars(amountInDollars: number): string {
+  if (typeof amountInDollars !== 'number' || isNaN(amountInDollars)) {
+    return '$0.00';
+  }
+  
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amountInDollars);
+}
+
+/**
  * Converts dollars to cents
  * @param dollars - Amount in dollars (e.g., 500.00)
  * @returns Amount in cents (e.g., 50000)

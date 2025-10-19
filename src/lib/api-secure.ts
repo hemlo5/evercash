@@ -511,5 +511,5 @@ export { tokenManager };
 // Listen for auth events
 window.addEventListener('auth:expired', () => {
   // Redirect to login or show modal
-  window.location.href = '/login';
+  window.location.href = '/';
 });

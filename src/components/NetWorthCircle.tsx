@@ -1,8 +1,10 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 
 interface NetWorthCircleProps {
   netWorth: number;
   target: number;
+  surplusDeficit?: number;
 }
 
 interface NetWorthCircleEditableProps extends NetWorthCircleProps {
@@ -13,7 +15,8 @@ interface NetWorthCircleEditableProps extends NetWorthCircleProps {
   setNetWorthTarget: (v: number) => void;
 }
 
-export function NetWorthCircle({ netWorth, target, editingTarget, setEditingTarget, targetInput, setTargetInput, setNetWorthTarget }: NetWorthCircleEditableProps) {
+export function NetWorthCircle({ netWorth, target, surplusDeficit, editingTarget, setEditingTarget, targetInput, setTargetInput, setNetWorthTarget }: NetWorthCircleEditableProps) {
+  const { formatAmount } = useSimpleCurrency();
   const percentage = Math.min((netWorth / target) * 100, 100);
   const data = [
     { name: "Current", value: percentage },
@@ -48,27 +51,33 @@ export function NetWorthCircle({ netWorth, target, editingTarget, setEditingTarg
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <p className="text-4xl font-bold text-white [text-shadow:_1px_1px_0_#000,_-1px_1px_0_#000,_1px_-1px_0_#000,_-1px_-1px_0_#000]">
-              {netWorth >= 1000 ? `$${(netWorth / 1000).toFixed(1)}k` : `$${netWorth}`}
-            </p>
+            <button
+              onClick={() => setEditingTarget(true)}
+              className="text-4xl font-bold text-white dark:[text-shadow:_1px_1px_0_#000,_-1px_1px_0_#000,_1px_-1px_0_#000,_-1px_-1px_0_#000] hover:scale-105 transition-transform cursor-pointer"
+              title="Click to edit target"
+            >
+              {netWorth >= 1000 ? `${formatAmount(netWorth / 1000)}k`.replace(/\.00/g, '') : formatAmount(netWorth)}
+            </button>
             <p className="text-sm text-muted-foreground mt-1">
               {percentage.toFixed(0)}% of goal
             </p>
           </div>
         </div>
-        <div className="mt-6 text-center">
-          <p className="text-xs text-muted-foreground">Target</p>
-          {editingTarget ? (
-            <div className="flex items-center justify-center gap-2 mt-1">
+        {editingTarget && (
+          <div className="mt-6 text-center">
+            <p className="text-xs text-muted-foreground mb-2">Edit Target</p>
+            <div className="flex items-center justify-center gap-2">
               <input
                 type="number"
                 min={0}
                 value={targetInput}
                 onChange={e => setTargetInput(e.target.value)}
-                className="w-24 px-2 py-1 rounded border focus:outline-none focus:ring"
+                className="w-32 px-3 py-2 rounded border focus:outline-none focus:ring-2 focus:ring-accent"
+                placeholder="Enter target"
+                autoFocus
               />
               <button
-                className="text-xs text-green-600 font-bold px-2 py-1 rounded hover:bg-green-100"
+                className="px-3 py-2 text-sm text-white bg-green-600 rounded hover:bg-green-700 font-medium"
                 onClick={() => {
                   const val = Number(targetInput);
                   if (!isNaN(val) && val > 0) {
@@ -79,23 +88,30 @@ export function NetWorthCircle({ netWorth, target, editingTarget, setEditingTarg
                 }}
               >Save</button>
               <button
-                className="text-xs text-muted-foreground px-2 py-1 rounded hover:bg-gray-100"
+                className="px-3 py-2 text-sm text-muted-foreground border rounded hover:bg-gray-50"
                 onClick={() => setEditingTarget(false)}
               >Cancel</button>
             </div>
-          ) : (
-            <div className="flex items-center justify-center gap-2">
-              <p className="text-lg font-semibold">
-                {target >= 1000 ? `$${(target / 1000).toFixed(0)}k` : `$${target}`}
-              </p>
-              <button
-                className="ml-2 text-xs text-accent underline hover:no-underline"
-                onClick={() => setEditingTarget(true)}
-                title="Edit Target"
-              >Edit</button>
+          </div>
+        )}
+        
+        {/* Surplus/Deficit Display */}
+        {surplusDeficit !== undefined && !editingTarget && (
+          <div className="mt-6 text-center">
+            <p className="text-xs text-muted-foreground mb-1">Monthly Status</p>
+            <div className={`flex items-center justify-center gap-2 ${surplusDeficit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className="text-lg font-semibold">
+                {surplusDeficit >= 0 ? 'Surplus' : 'Deficit'}
+              </span>
+              <span className="text-xl font-bold">
+                {formatAmount(Math.abs(surplusDeficit))}
+              </span>
             </div>
-          )}
-        </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Target: {target >= 1000 ? `${formatAmount(target / 1000)}k`.replace(/\.00/g, '') : formatAmount(target)}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

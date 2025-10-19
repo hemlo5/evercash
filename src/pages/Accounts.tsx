@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useApi } from "@/contexts/ApiContext";
+import { useApi } from '@/contexts/HybridApiContext';
 import { 
   Plus, 
   Pencil, 
@@ -13,43 +13,47 @@ import {
   Unlock,
   RefreshCw,
   MoreHorizontal,
-  Loader2
+  Loader2,
+  Globe
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import type { Account } from "@/lib/api";
+import { HybridAccount } from '@/lib/hybrid-api';
+
+// Extended Account interface for UI compatibility
+interface Account extends HybridAccount {
+  offbudget?: boolean;
+}
+
+// Simple CurrencySelector component
+const CurrencySelector = ({ value, onChange }: { value: string; onChange: (value: string) => void }) => (
+  <Select value={value} onValueChange={onChange}>
+    <SelectTrigger>
+      <SelectValue placeholder="Select currency" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="USD">USD ($)</SelectItem>
+      <SelectItem value="EUR">EUR (€)</SelectItem>
+      <SelectItem value="GBP">GBP (£)</SelectItem>
+      <SelectItem value="JPY">JPY (¥)</SelectItem>
+    </SelectContent>
+  </Select>
+);
 
 interface AccountFormData {
   name: string;
   type: string;
   offbudget: boolean;
   initialBalance?: number;
+  currency: string;
 }
 
 const accountTypeIcons = {
@@ -73,6 +77,7 @@ export default function Accounts() {
     type: "checking",
     offbudget: false,
     initialBalance: 0,
+    currency: "USD",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -88,7 +93,9 @@ export default function Accounts() {
     setIsLoading(true);
     try {
       const data = await api.getAccounts();
-      setAccounts(data);
+      // Add offbudget property for compatibility
+      const accountsWithOffbudget = data.map(acc => ({ ...acc, offbudget: false }));
+      setAccounts(accountsWithOffbudget);
     } catch (error) {
       console.error("Error loading accounts:", error);
       toast.error("Failed to load accounts");
@@ -111,8 +118,8 @@ export default function Accounts() {
         {
           name: formData.name,
           type: formData.type,
-          offbudget: formData.offbudget,
-          balance: formData.initialBalance ? formData.initialBalance * 100 : 0, // Convert to cents
+          balance: (formData.initialBalance || 0),
+          closed: false,
         }
       );
       
@@ -123,6 +130,7 @@ export default function Accounts() {
         type: "checking",
         offbudget: false,
         initialBalance: 0,
+        currency: "USD",
       });
       await loadAccounts();
     } catch (error) {
@@ -146,7 +154,6 @@ export default function Accounts() {
       await api.updateAccount(selectedAccount.id, {
         name: formData.name,
         type: formData.type,
-        offbudget: formData.offbudget,
       });
       
       toast.success("Account updated successfully");
@@ -218,10 +225,12 @@ export default function Accounts() {
   };
 
   const formatCurrency = (amount: number) => {
+    // Amounts are already in dollars
+    const dollars = amount;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(amount / 100); // Convert from cents
+    }).format(dollars);
   };
 
   const openEditDialog = (account: Account) => {
@@ -229,7 +238,9 @@ export default function Accounts() {
     setFormData({
       name: account.name,
       type: account.type,
-      offbudget: account.offbudget,
+      offbudget: account.offbudget || false,
+      initialBalance: (account.balance || 0),
+      currency: "USD",
     });
     setEditDialogOpen(true);
   };
@@ -462,6 +473,13 @@ export default function Accounts() {
                 placeholder="0.00"
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="currency">Currency</Label>
+              <CurrencySelector
+                value={formData.currency}
+                onChange={(currency) => setFormData({ ...formData, currency })}
+              />
+            </div>
             <div className="flex items-center space-x-2">
               <Switch
                 id="offbudget"
@@ -534,6 +552,13 @@ export default function Accounts() {
                   <Label htmlFor="edit-other">Other</Label>
                 </div>
               </RadioGroup>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-currency">Currency</Label>
+              <CurrencySelector
+                value={formData.currency}
+                onChange={(currency) => setFormData({ ...formData, currency })}
+              />
             </div>
             <div className="flex items-center space-x-2">
               <Switch

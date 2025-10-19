@@ -3,6 +3,8 @@
  * Real bank sync implementation
  */
 
+import React from 'react';
+
 interface PlaidConfig {
   clientId: string;
   secret: string;
@@ -55,7 +57,7 @@ export class PlaidService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: userId,
-          client_name: 'Emerald Budget',
+          client_name: 'EVERCASH',
           products: ['transactions', 'accounts', 'assets'],
           country_codes: ['US', 'CA'],
           language: 'en'
@@ -189,13 +191,15 @@ export class PlaidService {
     
     return 'Other';
   }
-  
   // Set up webhook for real-time updates
   async setupWebhook(accessToken: string, webhook: string): Promise<void> {
     try {
       await fetch('/api/plaid/webhook', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           access_token: accessToken,
           webhook
@@ -205,12 +209,21 @@ export class PlaidService {
       console.error('Webhook setup error:', error);
     }
   }
+  
+  // Test connection
+  async testConnection(): Promise<boolean> {
+    try {
+      // Try to create a link token as a connection test
+      await this.createLinkToken('test-user');
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 // Singleton instance
 export const plaidService = new PlaidService();
-
-// React component for Plaid Link
 export function PlaidLinkButton({ 
   onSuccess,
   onError 

@@ -5,23 +5,27 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-    fs: {
-      allow: [
-        // Allow serving files from the project root
-        process.cwd(),
-        // Allow serving files from the vendor directory
-        path.resolve(__dirname, "vendor/actual/packages/loot-core")
-      ],
-    },
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    mode === 'development' &&
+    componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "loot-core": path.resolve(__dirname, "vendor/actual/packages/loot-core/src"),
     },
   },
+  server: {
+    host: "0.0.0.0",
+    port: 3000,
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5006',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path: string) => path.replace(/^\/api/, ''),
+      }
+    }
+  }
 }));

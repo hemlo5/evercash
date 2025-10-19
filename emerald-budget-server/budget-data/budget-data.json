@@ -1,0 +1,229 @@
+{
+  "accounts": [
+    {
+      "id": "checking",
+      "name": "Checking",
+      "type": "checking",
+      "balance": 250000,
+      "closed": false
+    },
+    {
+      "id": "savings",
+      "name": "Savings",
+      "type": "savings",
+      "balance": 1000000,
+      "closed": false
+    },
+    {
+      "id": "credit",
+      "name": "Credit Card",
+      "type": "credit",
+      "balance": -50000,
+      "closed": false
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx1",
+      "account": "checking",
+      "payee": "Salary",
+      "amount": 223,
+      "date": "2025-10-01",
+      "category": "cat-income",
+      "notes": "October salary"
+    },
+    {
+      "id": "tx2",
+      "account": "credit",
+      "payee": "Netflix",
+      "amount": -100,
+      "date": "2025-10-05",
+      "category": "cat-entertainment",
+      "notes": "Monthly subscription"
+    },
+    {
+      "id": "tx3",
+      "account": "credit",
+      "payee": "Groceries",
+      "amount": -999,
+      "date": "2025-10-07",
+      "category": "cat-groceries",
+      "notes": "Weekly shopping"
+    },
+    {
+      "id": "tx4",
+      "account": "checking",
+      "payee": "Gas Station",
+      "amount": -32,
+      "date": "2025-10-08",
+      "category": "cat-transport",
+      "notes": "Fuel"
+    },
+    {
+      "id": "tx5",
+      "account": "credit",
+      "payee": "Restaurant",
+      "amount": -67,
+      "date": "2025-10-09",
+      "category": "cat-dining",
+      "notes": "Dinner"
+    },
+    {
+      "id": "tx6",
+      "account": "checking",
+      "payee": "Utilities",
+      "amount": -21,
+      "date": "2025-10-10",
+      "category": "cat-utilities",
+      "notes": "Electric bill"
+    },
+    {
+      "id": "tx7",
+      "account": "savings",
+      "payee": "Interest",
+      "amount": 2000,
+      "date": "2025-10-01",
+      "category": "cat-income",
+      "notes": "Savings interest"
+    },
+    {
+      "id": "tx8",
+      "account": "checking",
+      "payee": "Rent",
+      "amount": -434,
+      "date": "2025-10-01",
+      "category": "cat-rent",
+      "notes": "Monthly rent"
+    }
+  ],
+  "categories": {
+    "categoryGroups": [
+      {
+        "id": "grp-essentials",
+        "name": "Essential Expenses",
+        "is_income": false,
+        "categories": [
+          {
+            "id": "cat-rent",
+            "name": "Rent/Mortgage",
+            "cat_group": "grp-essentials",
+            "is_income": 0,
+            "budgeted": 2600,
+            "spent": 0,
+            "balance": 2600
+          },
+          {
+            "id": "cat-utilities",
+            "name": "Utilities",
+            "cat_group": "grp-essentials",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          },
+          {
+            "id": "cat-groceries",
+            "name": "Groceries",
+            "cat_group": "grp-essentials",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          },
+          {
+            "id": "cat-transport",
+            "name": "Transportation",
+            "cat_group": "grp-essentials",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          }
+        ]
+      },
+      {
+        "id": "grp-lifestyle",
+        "name": "Lifestyle",
+        "is_income": false,
+        "categories": [
+          {
+            "id": "cat-dining",
+            "name": "Dining Out",
+            "cat_group": "grp-lifestyle",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          },
+          {
+            "id": "cat-entertainment",
+            "name": "Entertainment",
+            "cat_group": "grp-lifestyle",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          },
+          {
+            "id": "cat-shopping",
+            "name": "Shopping",
+            "cat_group": "grp-lifestyle",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          }
+        ]
+      },
+      {
+        "id": "grp-savings",
+        "name": "Savings Goals",
+        "is_income": false,
+        "categories": [
+          {
+            "id": "cat-emergency",
+            "name": "Emergency Fund",
+            "cat_group": "grp-savings",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          },
+          {
+            "id": "cat-vacation",
+            "name": "Vacation",
+            "cat_group": "grp-savings",
+            "is_income": 0,
+            "budgeted": 0,
+            "spent": 0,
+            "balance": 0
+          }
+        ]
+      }
+    ]
+  },
+  "budgetMonths": {},
+  "payees": [
+    {
+      "id": "payee-1",
+      "name": "Salary"
+    },
+    {
+      "id": "payee-2",
+      "name": "Netflix"
+    },
+    {
+      "id": "payee-3",
+      "name": "Groceries"
+    },
+    {
+      "id": "payee-4",
+      "name": "Gas Station"
+    },
+    {
+      "id": "payee-5",
+      "name": "Restaurant"
+    }
+  ],
+  "schedules": []
+}

@@ -1,17 +1,16 @@
 import { useState } from "react";
-import { useApi } from "@/contexts/ApiContext";
+import { useApi } from "@/contexts/HybridApiContext";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import { sanitizeInput, sanitizeAmount, sanitizeCategory } from "@/lib/sanitize";
+import { toast } from "sonner";
 
 // Integration note: Use useTransactions() from Actual to add transaction
 // Call addTransaction(transactionData) with proper validation
 export function QuickAddTransaction({ onAdded }: { onAdded?: () => void }) {
-  const { toast } = useToast();
   const { api } = useApi();
   const [merchant, setMerchant] = useState("");
   const [amount, setAmount] = useState("");
@@ -31,11 +30,7 @@ export function QuickAddTransaction({ onAdded }: { onAdded?: () => void }) {
       
       // Validate sanitized inputs
       if (!sanitizedMerchant || sanitizedAmount <= 0) {
-        toast({
-          title: "Invalid input",
-          description: "Please enter valid merchant and amount",
-          variant: "destructive"
-        });
+        toast.error("Please enter valid merchant and amount");
         setLoading(false);
         return;
       }
@@ -49,33 +44,23 @@ export function QuickAddTransaction({ onAdded }: { onAdded?: () => void }) {
         throw new Error('No accounts available. Please create an account first.');
       }
       
-      await api.addTransactions(accounts[0].id, [{
+      await api.addTransaction({
+        account: accounts[0].id,
         payee: sanitizedMerchant,
         category: sanitizedCategory,
-        amount: Math.round(signedAmount * 100),
+        amount: signedAmount,
         date: new Date().toISOString().split('T')[0],
         notes: '',
-      }]);
-      
-      toast({
-        title: "✅ Transaction Added",
-        description: (
-          <span className={isExpense ? 'text-red-500' : 'text-green-500'}>
-            {isExpense ? '-' : '+'}${sanitizedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} at {sanitizedMerchant}
-          </span>
-        ),
       });
+      
+      toast.success(`✅ Transaction Added: ${isExpense ? '-' : '+'}$${sanitizedAmount.toFixed(2)} at ${sanitizedMerchant}`);
       setMerchant("");
       setAmount("");
       setCategory("");
       setType('expense');
       if (onAdded) onAdded();
     } catch (err) {
-      toast({ 
-        title: '❌ Failed to add transaction', 
-        description: err instanceof Error ? err.message : 'An error occurred', 
-        variant: 'destructive' 
-      });
+      toast.error(`❌ Failed to add transaction: ${err instanceof Error ? err.message : 'An error occurred'}`);
     } finally {
       setLoading(false);
     }

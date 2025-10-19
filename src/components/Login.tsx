@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApi } from '@/contexts/ApiContext';
+import { useApi } from '@/contexts/HybridApiContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,7 +39,7 @@ export function Login() {
               <Lock className="w-8 h-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Emerald Budget</CardTitle>
+          <CardTitle className="text-2xl font-bold">Welcome to EVERCASH</CardTitle>
           <CardDescription>
             Enter your password to access your budget
           </CardDescription>

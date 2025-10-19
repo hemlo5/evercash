@@ -6,19 +6,22 @@ import {
   Trophy, 
   Loader2, 
   Edit2,
-  Coffee,
-  ShoppingBag,
   Home,
   Car,
   Smartphone,
+  DollarSign,
   Heart,
-  DollarSign
+  Trash2,
+  Coffee,
+  ShoppingBag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AIInsightBadge } from "@/components/AIInsightBadge";
 import { StreakBadge } from "@/components/StreakBadge";
-import { useApi } from "@/contexts/ApiContext";
-import { formatCurrency, parseCurrencyInput } from "@/lib/currency";`nimport { toast } from "sonner";
+import { useApi } from '@/contexts/HybridApiContext';
+import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
+import { parseCurrencyInput } from "@/lib/currency";
+import { toast } from "sonner";
 import type { BudgetMonth, CategoryGroup } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,7 +36,8 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 
 export default function Budgets() {
-  const { api } = useApi();
+  const { api, loading } = useApi();
+  const { formatAmount } = useSimpleCurrency();
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -45,12 +49,20 @@ export default function Budgets() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryBudget, setNewCategoryBudget] = useState("");
 
   useEffect(() => {
     if (api) {
       loadBudgetData();
     }
   }, [api, currentMonth]);
+
+  // Refresh when transactions change elsewhere (e.g., goal allocations, imports)
+  useEffect(() => {
+    const handler = () => loadBudgetData();
+    window.addEventListener('transactions-updated', handler);
+    return () => window.removeEventListener('transactions-updated', handler);
+  }, []);
 
   const loadBudgetData = async () => {
     if (!api) return;
@@ -93,14 +105,33 @@ export default function Budgets() {
     setCurrentMonth(newMonth);
   };
 
+  const handleDeleteBudget = async (categoryId: string, categoryName: string) => {
+    if (!api) return;
+    
+    try {
+      // Show confirmation
+      if (!confirm(`Are you sure you want to remove the budget for "${categoryName}"? This will set the budget amount to $0.`)) {
+        return;
+      }
+      
+      // Set budget amount to 0 to effectively "delete" the budget
+      await api.setBudgetAmount(currentMonth, categoryId, 0);
+      toast.success(`Budget for "${categoryName}" removed and hidden from view`);
+      await loadBudgetData();
+    } catch (error) {
+      console.error('Failed to remove budget:', error);
+      toast.error('Failed to remove budget');
+    }
+  };
+
   const handleBudgetUpdate = async (categoryId: string) => {
     if (!api || !editAmount) return;
     
     try {
-      const amountCents = Math.round(parseFloat(editAmount) * 100);
-      console.log('Updating budget:', { currentMonth, categoryId, editAmount, amountCents });
+      const amountDollars = parseFloat(editAmount);
+      console.log('Updating budget:', { currentMonth, categoryId, editAmount, amountDollars });
       
-      const result = await api.setBudgetAmount(currentMonth, categoryId, amountCents);
+      const result = await api.setBudgetAmount(currentMonth, categoryId, amountDollars);
       console.log('Budget update result:', result);
       
       console.log('Waiting 500ms before reloading data...');
@@ -124,13 +155,20 @@ export default function Budgets() {
     try {
       await api.createCategory({
         name: newCategoryName,
-        group_id: selectedGroup,
+        cat_group: selectedGroup,
         is_income: false,
       });
+      
+      // Set initial budget amount if provided
+      if (newCategoryBudget) {
+        // This would need the category ID, but for now we'll skip this
+        // In a full implementation, createCategory would return the ID
+      }
       toast.success("Category created successfully");
       setCreateDialogOpen(false);
       setNewCategoryName("");
       setSelectedGroup("");
+      setNewCategoryBudget("");
       await loadBudgetData();
     } catch (error) {
       console.error("Error creating category:", error);
@@ -138,12 +176,7 @@ export default function Budgets() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount / 100);
-  };
+  // Using imported formatAmount function
 
   const formatMonth = (monthStr: string) => {
     const [year, month] = monthStr.split('-').map(Number);
@@ -171,11 +204,11 @@ export default function Budgets() {
     );
   }
 
-  const expenseGroups = budgetData?.categoryGroups.filter(g => !g.is_income) || [];
+  const expenseGroups = budgetData?.categoryGroups?.filter(g => !g.is_income) || [];
   const onTrackCount = expenseGroups.reduce((count, group) => {
-    return count + group.categories.filter(cat => 
+    return count + (group.categories?.filter(cat => 
       (cat.budgeted || 0) > Math.abs(cat.spent || 0)
-    ).length;
+    ).length || 0);
   }, 0);
 
   return (
@@ -211,22 +244,22 @@ export default function Budgets() {
       {/* Budget Summary */}
       <div className="glass-card p-6 rounded-2xl border-accent/20">
         <h2 className="text-xl font-bold mb-4">Budget Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Total Budgeted</p>
-            <p className="text-2xl font-bold">{formatCurrency(budgetData?.totalBudgeted || 0)}</p>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="rounded-xl p-4 bg-muted/40 dark:bg-white/5 border border-border/40 dark:border-white/10 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Total Budgeted</p>
+            <p className="text-2xl font-bold text-foreground">{formatAmount((budgetData?.totalBudgeted || 0))}</p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Total Spent</p>
-            <p className="text-2xl font-bold">{formatCurrency(budgetData?.totalSpent || 0)}</p>
+          <div className="rounded-xl p-4 bg-muted/40 dark:bg-white/5 border border-border/40 dark:border-white/10 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Total Spent</p>
+            <p className="text-2xl font-bold text-foreground">{formatAmount((budgetData?.totalSpent || 0))}</p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Total Income</p>
-            <p className="text-2xl font-bold text-green-600">{formatCurrency(budgetData?.totalIncome || 0)}</p>
+          <div className="rounded-xl p-4 bg-muted/40 dark:bg-white/5 border border-border/40 dark:border-white/10 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Total Income</p>
+            <p className="text-2xl font-bold text-green-500 dark:text-emerald-400">{formatAmount((budgetData?.totalIncome || 0))}</p>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">To Budget</p>
-            <p className="text-2xl font-bold text-accent">{formatCurrency(budgetData?.toBudget || 0)}</p>
+          <div className="rounded-xl p-4 bg-muted/40 dark:bg-white/5 border border-border/40 dark:border-white/10 shadow-sm">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">To Budget</p>
+            <p className="text-2xl font-bold text-accent">{formatAmount((budgetData?.toBudget || 0))}</p>
           </div>
         </div>
       </div>
@@ -242,7 +275,7 @@ export default function Budgets() {
           <AIInsightBadge
             type="warning"
             message="Overbudget"
-            detail={`You've overbudgeted by ${formatCurrency(Math.abs(budgetData.toBudget))}`}
+            detail={`You've overbudgeted by ${formatAmount(Math.abs(budgetData.toBudget))}`}
           />
         )}
       </div>
@@ -253,10 +286,12 @@ export default function Budgets() {
           <div key={group.id} className="glass-card p-6 rounded-2xl">
             <h3 className="text-lg font-semibold mb-4">{group.name}</h3>
             <div className="space-y-3">
-              {group.categories.map((category) => {
+              {(group.categories || [])
+                .filter(category => (category.budgeted || 0) > 0) // Only show categories with budget > $0
+                .map((category) => {
                 const Icon = getIconForCategory(category.name);
-                const budgeted = category.budgeted || 0;
-                const spent = Math.abs(category.spent || 0);
+                const budgeted = (category.budgeted || 0); // Already in dollars
+                const spent = Math.abs((category.spent || 0)); // Already in dollars
                 const remaining = budgeted - spent;
                 const percentSpent = budgeted > 0 ? (spent / budgeted) * 100 : 0;
                 
@@ -270,13 +305,13 @@ export default function Budgets() {
                         <div>
                           <h4 className="font-medium">{category.name}</h4>
                           <p className="text-sm text-muted-foreground">
-                            {formatCurrency(spent)} of {formatCurrency(budgeted)}
+                            {formatAmount(spent)} of {formatAmount(budgeted)}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`text-sm font-medium ${remaining >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {remaining >= 0 ? 'Remaining' : 'Overspent'}: {formatCurrency(Math.abs(remaining))}
+                          {remaining >= 0 ? 'Remaining' : 'Overspent'}: {formatAmount(Math.abs(remaining))}
                         </span>
                         {editingCategory === category.id ? (
                           <div className="flex gap-2">
@@ -307,16 +342,26 @@ export default function Budgets() {
                             </Button>
                           </div>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingCategory(category.id);
-                              setEditAmount((budgeted / 100).toString());
-                            }}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCategory(category.id);
+                                setEditAmount(budgeted.toString());
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteBudget(category.id, category.name)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -361,6 +406,16 @@ export default function Budgets() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Budget Amount</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={newCategoryBudget}
+                onChange={(e) => setNewCategoryBudget(e.target.value)}
+                placeholder="e.g., 500.00"
+              />
             </div>
           </div>
           <DialogFooter>

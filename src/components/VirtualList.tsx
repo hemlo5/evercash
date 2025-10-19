@@ -4,6 +4,7 @@
  */
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
+import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 
 interface VirtualListProps<T> {
   items: T[];
@@ -89,6 +90,7 @@ export function VirtualTransactionList({
   onEdit: (tx: any) => void;
   onDelete: (id: string) => void;
 }) {
+  const { formatAmount } = useSimpleCurrency();
   const renderTransaction = useCallback((tx: any) => (
     <div className="flex items-center justify-between p-4 border-b hover:bg-accent/5 transition-colors">
       <div className="flex-1">
@@ -97,7 +99,7 @@ export function VirtualTransactionList({
       </div>
       <div className="flex items-center gap-4">
         <span className={`font-semibold ${tx.amount < 0 ? 'text-red-500' : 'text-green-500'}`}>
-          ${Math.abs(tx.amount / 100).toFixed(2)}
+          {formatAmount(Math.abs(tx.amount))}
         </span>
         <div className="flex gap-2">
           <button

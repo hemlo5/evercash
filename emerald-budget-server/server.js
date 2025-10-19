@@ -6,10 +6,14 @@ const rateLimit = require('express-rate-limit');
 const csrf = require('csurf');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const fs = require('fs').promises;
-const path = require('path');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+const multer = require('multer');
 require('dotenv').config();
+
+// Import Supabase configuration
+const { SupabaseDB, initializeDatabase } = require('./supabase-config');
+const db = new SupabaseDB();
 
 // Import security configuration
 const {
@@ -26,6 +30,20 @@ const {
 
 const app = express();
 const PORT = process.env.PORT || 5006;
+
+// Configure multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
+    if (allowedTypes.includes(file.mimetype) || file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only CSV files are allowed'));
+    }
+  }
+});
 
 // HTTPS redirect for production
 app.use(httpsRedirect);
@@ -168,6 +186,8 @@ app.post('/account/login', async (req, res) => {
       // Remove old plain text password if it exists
       delete budgetData.user.password;
       
+      console.log('🔐 First time setup - Password set successfully');
+      
       await saveData(budgetData);
       
       res.json({
@@ -181,9 +201,11 @@ app.post('/account/login', async (req, res) => {
     }
     
     // Check password
+    console.log('🔍 Checking password for existing user...');
     const isValidPassword = await bcrypt.compare(password, budgetData.user.passwordHash);
     
     if (isValidPassword) {
+      console.log('✅ Password correct - generating new token');
       budgetData.user.token = crypto.randomBytes(32).toString('hex');
       await saveData(budgetData);
       
@@ -195,6 +217,7 @@ app.post('/account/login', async (req, res) => {
         }
       });
     } else {
+      console.log('❌ Password incorrect');
       res.status(401).json({
         status: 'error',
         message: 'Invalid password'
@@ -226,12 +249,11 @@ function checkAuth(req, res, next) {
       details: 'token-not-found'
     });
   }
-  
   next();
 }
 
-// Sync endpoint (main data endpoint)
-app.post('/sync/sync', checkAuth, (req, res) => {
+// Sync endpoint - handles all data updates
+app.post('/sync/sync', async (req, res) => {
   const { messages } = req.body;
   
   if (!messages) {
@@ -294,6 +316,7 @@ app.post('/sync/sync', checkAuth, (req, res) => {
             // Create
             budgetData.accounts.push(row);
           }
+          console.log('Account saved:', row.name, 'Total accounts:', budgetData.accounts.length);
           break;
           
         case 'transactions':
@@ -307,6 +330,7 @@ app.post('/sync/sync', checkAuth, (req, res) => {
             // Create
             budgetData.transactions.push(row);
           }
+          console.log('Transaction saved:', row.payee || 'Unknown', 'Total transactions:', budgetData.transactions.length);
           break;
           
         case 'categories':
@@ -353,12 +377,29 @@ app.post('/sync/sync', checkAuth, (req, res) => {
           break;
       }
       
-      // Save after each write
-      saveData(budgetData);
+      // Save after each write (await the save)
+      await saveData(budgetData);
     }
   }
   
   res.json({ messages: responseMessages });
+});
+
+// GET endpoints for data retrieval
+app.get('/accounts', (req, res) => {
+  res.json(budgetData.accounts || []);
+});
+
+app.get('/transactions', (req, res) => {
+  res.json(budgetData.transactions || []);
+});
+
+app.get('/categories', (req, res) => {
+  res.json(budgetData.categories || []);
+});
+
+app.get('/payees', (req, res) => {
+  res.json(budgetData.payees || []);
 });
 
 // List budget files
@@ -377,23 +418,50 @@ app.post('/sync/list-user-files', (req, res) => {
 app.get('/budget/month/:month', (req, res) => {
   const { month } = req.params;
   
+  // Ensure categoryGroups and categories exist
+  if (!budgetData.categoryGroups || budgetData.categoryGroups.length === 0) {
+    // Initialize with sample data if empty
+    budgetData.categoryGroups = [
+      {
+        id: 'grp-essential',
+        name: 'Essential Expenses',
+        is_income: 0,
+        sort_order: 1
+      },
+      {
+        id: 'grp-lifestyle',
+        name: 'Lifestyle',
+        is_income: 0,
+        sort_order: 2
+      }
+    ];
+    
+    budgetData.categories = [
+      { id: 'cat-rent', name: 'Rent/Mortgage', cat_group: 'grp-essential', is_income: 0 },
+      { id: 'cat-utilities', name: 'Utilities', cat_group: 'grp-essential', is_income: 0 },
+      { id: 'cat-groceries', name: 'Groceries', cat_group: 'grp-essential', is_income: 0 },
+      { id: 'cat-dining', name: 'Dining Out', cat_group: 'grp-lifestyle', is_income: 0 },
+      { id: 'cat-entertainment', name: 'Entertainment', cat_group: 'grp-lifestyle', is_income: 0 }
+    ];
+  }
+  
   // Calculate budget data for the month
-  const categoryGroups = budgetData.categoryGroups.map(group => ({
+  const categoryGroups = (budgetData.categoryGroups || []).map(group => ({
     ...group,
-    categories: budgetData.categories
+    categories: (budgetData.categories || [])
       .filter(cat => cat.cat_group === group.id)
       .map(cat => {
         // Calculate spent amount from transactions
-        const spent = budgetData.transactions
+        const spent = (budgetData.transactions || [])
           .filter(t => t.category === cat.id && t.date && t.date.startsWith(month.replace(/-/g, '')))
           .reduce((sum, t) => sum + Math.abs(t.amount || 0), 0);
         
-        const budgeted = budgetData.budgets[`${month}-${cat.id}`] || 0;
+        const budgeted = (budgetData.budgets || {})[`${month}-${cat.id}`] || 0;
         
         return {
           ...cat,
           budgeted,
-          spent,
+          spent: -spent, // Negative for expenses
           balance: budgeted - spent
         };
       })
@@ -616,13 +684,282 @@ app.put('/budget/:month/category/:categoryId', (req, res) => {
   res.json({ success: true, budget: budgetData.budgets[month][categoryId] });
 });
 
-// Start server
-initDataDir().then(() => {
-  loadData().then(data => {
-    budgetData = data;
-    app.listen(PORT, () => {
-      console.log(`Emerald Budget Server running on port ${PORT}`);
-      console.log('Use this server for real data storage with your budget app');
-    });
-  });
+// Scheduled Transactions endpoints
+app.get('/scheduled-transactions', (req, res) => {
+  res.json(budgetData.scheduledTransactions || []);
 });
+
+app.post('/scheduled-transactions', async (req, res) => {
+  const schedule = {
+    id: crypto.randomUUID(),
+    ...req.body,
+    createdAt: new Date().toISOString()
+  };
+  
+  budgetData.scheduledTransactions = budgetData.scheduledTransactions || [];
+  budgetData.scheduledTransactions.push(schedule);
+  
+  await saveData(budgetData);
+  res.json({ status: 'ok', data: schedule });
+});
+
+app.delete('/scheduled-transactions/:id', async (req, res) => {
+  const { id } = req.params;
+  budgetData.scheduledTransactions = (budgetData.scheduledTransactions || []).filter(s => s.id !== id);
+  await saveData(budgetData);
+  res.json({ status: 'ok' });
+});
+
+// Import Rules endpoints
+app.get('/import-rules', (req, res) => {
+  res.json(budgetData.importRules || []);
+});
+
+app.post('/import-rules', async (req, res) => {
+  const rule = {
+    id: crypto.randomUUID(),
+    ...req.body,
+    createdAt: new Date().toISOString(),
+    useCount: 0
+  };
+  
+  budgetData.importRules = budgetData.importRules || [];
+  budgetData.importRules.push(rule);
+  
+  await saveData(budgetData);
+  res.json({ status: 'ok', data: rule });
+});
+
+// Currency rates endpoint
+app.get('/currency/rates', (req, res) => {
+  const rates = {
+    base: 'USD',
+    rates: {
+      'EUR': 0.85,
+      'GBP': 0.73,
+      'JPY': 110.50,
+      'CAD': 1.25,
+      'AUD': 1.35,
+      'INR': 83.12,
+      'CNY': 6.45,
+      'CHF': 0.92,
+      'MXN': 18.50,
+      'BRL': 5.25,
+      'ZAR': 18.75,
+      'SEK': 10.50
+    },
+    lastUpdated: new Date().toISOString()
+  };
+  
+  res.json(rates);
+});
+
+// CSV Import endpoint using Actual Budget's proven parsing
+app.post('/import-transactions', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'No file uploaded' 
+      });
+    }
+
+    const { accountId } = req.body;
+    if (!accountId) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Account ID is required' 
+      });
+    }
+
+    console.log('📄 Processing CSV import:', req.file.originalname);
+    
+    // Parse CSV file using proven CSV parsing
+    const fileContent = req.file.buffer.toString('utf-8');
+    const lines = fileContent.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'CSV file must have at least a header and one data row' 
+      });
+    }
+
+    // Parse header and detect columns
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    console.log('📋 CSV Headers:', headers);
+    
+    // Auto-detect column mappings (case insensitive)
+    const getColumnIndex = (patterns) => {
+      for (const pattern of patterns) {
+        const index = headers.findIndex(h => 
+          h.toLowerCase().includes(pattern.toLowerCase())
+        );
+        if (index !== -1) return index;
+      }
+      return -1;
+    };
+
+    const dateCol = getColumnIndex(['date', 'transaction date', 'posted date']);
+    const amountCol = getColumnIndex(['amount', 'debit', 'credit']);
+    const descCol = getColumnIndex(['description', 'memo', 'payee', 'merchant']);
+    
+    if (dateCol === -1 || amountCol === -1) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'Could not find required Date and Amount columns in CSV' 
+      });
+    }
+
+    console.log('🎯 Column mapping:', { dateCol, amountCol, descCol });
+
+    // Parse transactions
+    const transactions = [];
+    let imported = 0;
+    
+    for (let i = 1; i < lines.length; i++) {
+      try {
+        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        
+        if (values.length < Math.max(dateCol, amountCol) + 1) {
+          console.warn(`⚠️ Skipping row ${i + 1}: insufficient columns`);
+          continue;
+        }
+
+        // Parse date (handle multiple formats)
+        const dateStr = values[dateCol];
+        let parsedDate;
+        
+        // Try different date formats
+        if (dateStr.includes('/')) {
+          const [month, day, year] = dateStr.split('/');
+          parsedDate = new Date(year.length === 2 ? `20${year}` : year, month - 1, day);
+        } else if (dateStr.includes('-')) {
+          parsedDate = new Date(dateStr);
+        } else {
+          console.warn(`⚠️ Skipping row ${i + 1}: invalid date format`);
+          continue;
+        }
+
+        if (isNaN(parsedDate.getTime())) {
+          console.warn(`⚠️ Skipping row ${i + 1}: invalid date`);
+          continue;
+        }
+
+        // Parse amount (handle negative values, currency symbols)
+        let amountStr = values[amountCol].replace(/[$,]/g, '');
+        let amount = parseFloat(amountStr);
+        
+        if (isNaN(amount)) {
+          console.warn(`⚠️ Skipping row ${i + 1}: invalid amount`);
+          continue;
+        }
+
+        // Convert to cents (Actual Budget format)
+        amount = Math.round(amount * 100);
+
+        // Get description
+        const description = descCol !== -1 ? values[descCol] : 'Imported Transaction';
+
+        const transaction = {
+          id: crypto.randomUUID(),
+          account: accountId,
+          date: parsedDate.toISOString().split('T')[0].replace(/-/g, ''),
+          amount: amount,
+          payee: description,
+          notes: `Imported from ${req.file.originalname}`,
+          imported: true,
+          cleared: true
+        };
+
+        transactions.push(transaction);
+        imported++;
+        
+      } catch (error) {
+        console.warn(`⚠️ Error parsing row ${i + 1}:`, error.message);
+      }
+    }
+
+    if (imported === 0) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: 'No valid transactions found in CSV file' 
+      });
+    }
+
+    // Add transactions to budget data
+    budgetData.transactions = budgetData.transactions || [];
+    budgetData.transactions.push(...transactions);
+    
+    await saveData(budgetData);
+    
+    console.log(`✅ Successfully imported ${imported} transactions`);
+    
+    res.json({ 
+      status: 'ok', 
+      imported: imported,
+      message: `Successfully imported ${imported} transactions`
+    });
+    
+  } catch (error) {
+    console.error('💥 CSV import error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: 'Failed to import CSV file' 
+    });
+  }
+});
+
+// Goals endpoints
+app.get('/goals', (req, res) => {
+  res.json(budgetData.goals || []);
+});
+
+app.post('/goals', async (req, res) => {
+  const goal = {
+    id: crypto.randomUUID(),
+    ...req.body,
+    createdAt: new Date().toISOString()
+  };
+  
+  budgetData.goals = budgetData.goals || [];
+  budgetData.goals.push(goal);
+  
+  await saveData(budgetData);
+  res.json({ status: 'ok', data: goal });
+});
+
+app.put('/goals/:id', async (req, res) => {
+  const { id } = req.params;
+  const index = (budgetData.goals || []).findIndex(g => g.id === id);
+  
+  if (index >= 0) {
+    budgetData.goals[index] = { ...budgetData.goals[index], ...req.body };
+    await saveData(budgetData);
+    res.json({ status: 'ok', data: budgetData.goals[index] });
+  } else {
+    res.status(404).json({ error: 'Goal not found' });
+  }
+});
+
+// Start server
+async function startServer() {
+  try {
+    await initDataDir();
+    budgetData = await loadData();
+
+    app.listen(PORT, () => {
+      console.log(`✅ Emerald Budget Server running on port ${PORT}`);
+      console.log('   Use this server for real data storage with your budget app.');
+      console.log('   Server is ready to accept connections...');
+      console.log('   New endpoints added: /scheduled-transactions, /import-rules, /currency/rates, /goals');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1); // Exit with an error code
+  }
+}
+
+// Run the server
+startServer();

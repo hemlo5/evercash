@@ -1,14 +1,19 @@
-import { useState, useEffect } from "react";
-import { Search, Upload, Download, Filter, Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { TransactionItem } from "@/components/TransactionItem";
 import { BankSyncModal } from "@/components/BankSyncModal";
 import { Badge } from "@/components/ui/badge";
-import { useApi } from "@/contexts/ApiContext";
+import { useApi } from '@/contexts/HybridApiContext';
 import { toast } from "sonner";
+import { Loader2, Plus, Search, Filter, Upload, Download, Repeat, Edit, Trash2, AlertTriangle, TrendingUp, TrendingDown, RotateCcw } from "lucide-react";
+import '@/lib/debug-categorization'; // Makes window.debugCategorization() available
+import '@/lib/direct-categorizer'; // Makes window.directCategorizeAll() available
 import type { Transaction, Account, Category, Payee } from "@/lib/api";
 import { sanitizeInput, sanitizeAmount, sanitizeNotes } from "@/lib/sanitize";
+import { scheduledTransactions } from "@/lib/scheduled-transactions";
+import { ImportRulesEngine } from "@/lib/import-rules";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +33,7 @@ import {
 
 export default function Transactions() {
   const { api } = useApi();
+  const navigate = useNavigate();
   const [bankSyncOpen, setBankSyncOpen] = useState(false);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -38,6 +44,15 @@ export default function Transactions() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isRecategorizing, setIsRecategorizing] = useState(false);
+  const [recatProcessed, setRecatProcessed] = useState(0);
+  const [recatTotal, setRecatTotal] = useState(0);
+  const [recatUpdated, setRecatUpdated] = useState(0);
+  const stopRef = useRef(false);
+  const [transactionFilter, setTransactionFilter] = useState<'all' | 'income' | 'expense'>('all');
   const [formData, setFormData] = useState({
     account: "",
     payee: "",
@@ -70,6 +85,11 @@ export default function Transactions() {
       setAccounts(accData);
       setCategories(catData);
       setPayees(payeeData);
+      
+      // Debug categories
+      console.log('📋 Categories loaded:', catData);
+      console.log('📋 Categories count:', catData.length);
+      console.log('📋 Non-income categories:', catData.filter(c => !c.is_income));
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Failed to load transactions");
@@ -92,22 +112,58 @@ export default function Transactions() {
         return;
       }
       
+      // Auto-categorize if no category is selected
+      let category = formData.category;
+      if (!category || category === '' || category === 'Other' || category === 'Uncategorized') {
+        category = await autoCategorizeTransaction({
+          payee: sanitizedPayee,
+          notes: sanitizedNotes,
+          amount: formData.type === 'expense' ? -sanitizedAmount : sanitizedAmount,
+          date: formData.date
+        });
+      }
+      
       const signedAmount = formData.type === 'expense' ? -sanitizedAmount : sanitizedAmount;
       await api.addTransactions(formData.account, [{
         id: crypto.randomUUID(), // Use UUID instead of Date.now() to prevent race conditions
         payee: sanitizedPayee,
-        category: formData.category,
-        amount: Math.round(signedAmount * 100), // Convert to cents
+        category: category,
+        amount: signedAmount, // Keep in dollars, will be converted to cents in API
         date: formData.date,
         notes: sanitizedNotes,
       }]);
-      toast.success("✅ Transaction added securely");
+      toast.success("✅ Transaction added and auto-categorized");
       setCreateDialogOpen(false);
       await loadData();
     } catch (error) {
       console.error("Error creating transaction:", error);
       toast.error("❌ Failed to create transaction");
     }
+  };
+
+  // Auto-categorize new transactions using AI
+  const autoCategorizeTransaction = async (transactionData: any) => {
+    try {
+      const { aiCategorizer } = await import('@/lib/ai-categorizer');
+      
+      if (aiCategorizer.isConfigured()) {
+        const result = await aiCategorizer.categorizeTransaction({
+          description: transactionData.payee || transactionData.notes || '',
+          amount: transactionData.amount,
+          date: transactionData.date
+        });
+        
+        // Use AI category if confidence is high enough
+        if (result.confidence > 0.6) {
+          console.log(`🤖 Auto-categorized: "${transactionData.payee}" → ${result.category} (${Math.round(result.confidence * 100)}%)`);
+          return result.category;
+        }
+      }
+    } catch (error) {
+      console.warn('Auto-categorization failed:', error);
+    }
+    
+    return transactionData.category; // Return original category if AI fails
   };
 
 
@@ -129,7 +185,7 @@ export default function Transactions() {
       await api.updateTransaction(selectedTransaction.id, {
         payee: sanitizedPayee,
         category: formData.category,
-        amount: Math.round(sanitizedAmount * 100),
+        amount: sanitizedAmount, // Keep in dollars, will be converted to cents in API
         date: formData.date,
         notes: sanitizedNotes,
       });
@@ -148,19 +204,41 @@ export default function Transactions() {
     
     try {
       await api.deleteTransaction(id);
+      setTransactions(prev => prev.filter(t => t.id !== id));
       toast.success("Transaction deleted successfully");
-      await loadData();
     } catch (error) {
       console.error("Error deleting transaction:", error);
       toast.error("Failed to delete transaction");
     }
   };
 
+  const handleDeleteAllTransactions = async () => {
+    if (!api || deleteConfirmText !== "delete all transactions") {
+      toast.error("Please type 'delete all transactions' exactly to confirm");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await api.deleteAllTransactions();
+      setTransactions([]);
+      setDeleteAllDialogOpen(false);
+      setDeleteConfirmText("");
+      toast.success("All transactions deleted successfully");
+    } catch (error) {
+      console.error("Error deleting all transactions:", error);
+      toast.error("Failed to delete all transactions");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
+    // Amount is already in dollars from the API (converted from cents)
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(amount / 100);
+    }).format(amount);
   };
 
   const formatDate = (dateStr: string) => {
@@ -182,24 +260,67 @@ export default function Transactions() {
     }
   };
 
-  const getPayeeName = (payeeId: string) => {
-    const payee = payees.find(p => p.id === payeeId);
-    return payee?.name || 'Unknown';
-  };
+  const getPayeeName = useMemo(() => {
+    const payeeMap = new Map();
+    payees.forEach(p => payeeMap.set(p.id, p.name));
+    
+    return (payeeId: string) => {
+      if (!payeeId) return 'Unknown';
+      return payeeMap.get(payeeId) || payeeId;
+    };
+  }, [payees]);
 
-  const getCategoryName = (categoryId: string) => {
-    const category = categories.find(c => c.id === categoryId);
-    return category?.name || 'Uncategorized';
-  };
+  const getCategoryName = useMemo(() => {
+    const categoryMap = new Map();
+    categories.forEach(c => {
+      categoryMap.set(c.id, c.name);
+      categoryMap.set(c.name, c.name);
+    });
+    
+    const validCategoryNames = ['Food & Dining', 'Shopping', 'Transportation', 'Entertainment', 
+                               'Bills & Utilities', 'Healthcare', 'Education', 'Travel', 
+                               'Personal Care', 'Gifts & Donations', 'Salary', 'Freelance', 
+                               'Investment', 'Other Income', 'Other'];
+    
+    return (categoryIdOrName: string) => {
+      if (!categoryIdOrName) return 'Uncategorized';
+      return categoryMap.get(categoryIdOrName) || 
+             (validCategoryNames.includes(categoryIdOrName) ? categoryIdOrName : 'Uncategorized');
+    };
+  }, [categories]);
+
+  const getAccountName = useMemo(() => {
+    const accountMap = new Map();
+    accounts.forEach(a => accountMap.set(a.id, a.name));
+    
+    return (accountId: string) => {
+      if (!accountId) return 'Unknown';
+      return accountMap.get(accountId) || accountId;
+    };
+  }, [accounts]);
+
+  // Calculate counts for filter cards
+  const incomeCount = transactions.filter(tx => tx.amount > 0).length;
+  const expenseCount = transactions.filter(tx => tx.amount < 0).length;
 
   const filteredTransactions = transactions.filter(tx => {
+    // Apply type filter first
+    if (transactionFilter === 'income' && tx.amount <= 0) return false;
+    if (transactionFilter === 'expense' && tx.amount >= 0) return false;
+    
+    // Then apply search filter
     if (!searchTerm) return true;
     const payeeName = getPayeeName(tx.payee).toLowerCase();
     const categoryName = getCategoryName(tx.category).toLowerCase();
-    const search = searchTerm.toLowerCase();
-    return payeeName.includes(search) || 
-           categoryName.includes(search) ||
-           tx.notes?.toLowerCase().includes(search);
+    const accountName = getAccountName(tx.account).toLowerCase();
+    const amount = Math.abs(tx.amount).toString();
+    const notes = (tx.notes || '').toLowerCase();
+    
+    return payeeName.includes(searchTerm.toLowerCase()) ||
+           categoryName.includes(searchTerm.toLowerCase()) ||
+           accountName.includes(searchTerm.toLowerCase()) ||
+           amount.includes(searchTerm) ||
+           notes.includes(searchTerm.toLowerCase());
   });
 
   if (isLoading) {
@@ -212,73 +333,316 @@ export default function Transactions() {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Transactions</h1>
-          <p className="text-muted-foreground">View and manage all your transactions</p>
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl md:text-4xl font-bold mb-2">Transactions</h1>
+          <p className="text-muted-foreground text-sm md:text-base">View and manage all your transactions</p>
         </div>
-        <Button
-          onClick={() => {
-            setFormData({
-              account: accounts[0]?.id || "",
-              payee: "",
-              category: "",
-              amount: 0,
-              date: new Date().toISOString().split('T')[0],
-              notes: "",
-              type: 'expense',
-            });
-            setCreateDialogOpen(true);
-          }}
-          className="bg-gradient-emerald hover:opacity-90"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Add Transaction
-        </Button>
+        {/* Desktop: All buttons in one row */}
+        <div className="hidden md:flex gap-3">
+          <Button
+            onClick={async () => {
+              if (!api || isRecategorizing) return;
+              try {
+                setIsRecategorizing(true);
+                toast.info("Recategorising in background…");
+                const { aiCategorizer } = await import('@/lib/ai-categorizer');
+                const toProcess = [...transactions].sort((a, b) => (a.date < b.date ? 1 : -1));
+                setRecatProcessed(0);
+                setRecatTotal(toProcess.length);
+                setRecatUpdated(0);
+                stopRef.current = false;
+                let updated = 0;
+                for (const tx of toProcess) {
+                  if (stopRef.current) break;
+                  try {
+                    const desc = getPayeeName(tx.payee) || tx.notes || '';
+                    const result = await aiCategorizer.categorizeTransaction({
+                      description: desc,
+                      amount: tx.amount,
+                      date: tx.date,
+                    });
+                    if (result && result.category) {
+                      await api.updateTransaction(tx.id, { category: result.category });
+                      updated++;
+                      setRecatUpdated(prev => prev + 1);
+                    }
+                  } catch {}
+                  setRecatProcessed(prev => prev + 1);
+                  await new Promise(r => setTimeout(r, 75));
+                }
+                if (stopRef.current) {
+                  toast.info(`Stopped recategorising after ${recatProcessed}/${recatTotal} (updated ${updated})`);
+                } else {
+                  toast.success(`Recategorised ${updated} transactions`);
+                }
+                await loadData();
+              } catch (e) {
+                toast.error("Failed to recategorise");
+              } finally {
+                setIsRecategorizing(false);
+              }
+            }}
+            variant="outline"
+            disabled={transactions.length === 0 || isRecategorizing}
+            className="border-accent/30 hover:bg-accent/10 text-sm px-4 py-2"
+          >
+            {isRecategorizing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Recategorising…
+              </>
+            ) : (
+              <>
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Recategorise
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={() => setDeleteAllDialogOpen(true)}
+            variant="destructive"
+            disabled={transactions.length === 0}
+            className="bg-red-600 hover:bg-red-700 text-white text-sm px-4 py-2"
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete All ({transactions.length})
+          </Button>
+          <Button
+            onClick={() => navigate('/import')}
+            variant="outline"
+            className="border-accent/30 hover:bg-accent/10 text-sm px-4 py-2"
+          >
+            <Upload className="w-5 h-5 mr-2" />
+            Import Transactions
+          </Button>
+          <Button
+            onClick={() => {
+              setFormData({
+                account: accounts[0]?.id || "",
+                payee: "",
+                category: "",
+                amount: 0,
+                date: new Date().toISOString().split('T')[0],
+                notes: "",
+                type: 'expense',
+              });
+              setCreateDialogOpen(true);
+            }}
+            className="bg-gradient-emerald hover:opacity-90 text-sm px-4 py-2"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Add Transaction
+          </Button>
+        </div>
+
+        {/* Mobile: Two rows layout */}
+        <div className="md:hidden space-y-3">
+          {/* First row: Recat, Delete, Schedule */}
+          <div className="flex gap-2">
+            <Button
+              onClick={async () => {
+                if (!api || isRecategorizing) return;
+                try {
+                  setIsRecategorizing(true);
+                  toast.info("Recategorising in background…");
+                  const { aiCategorizer } = await import('@/lib/ai-categorizer');
+                  const toProcess = [...transactions].sort((a, b) => (a.date < b.date ? 1 : -1));
+                  setRecatProcessed(0);
+                  setRecatTotal(toProcess.length);
+                  setRecatUpdated(0);
+                  stopRef.current = false;
+                  let updated = 0;
+                  for (const tx of toProcess) {
+                    if (stopRef.current) break;
+                    try {
+                      const desc = getPayeeName(tx.payee) || tx.notes || '';
+                      const result = await aiCategorizer.categorizeTransaction({
+                        description: desc,
+                        amount: tx.amount,
+                        date: tx.date,
+                      });
+                      if (result && result.category) {
+                        await api.updateTransaction(tx.id, { category: result.category });
+                        updated++;
+                        setRecatUpdated(prev => prev + 1);
+                      }
+                    } catch {}
+                    setRecatProcessed(prev => prev + 1);
+                    await new Promise(r => setTimeout(r, 75));
+                  }
+                  if (stopRef.current) {
+                    toast.info(`Stopped recategorising after ${recatProcessed}/${recatTotal} (updated ${updated})`);
+                  } else {
+                    toast.success(`Recategorised ${updated} transactions`);
+                  }
+                  await loadData();
+                } catch (e) {
+                  toast.error("Failed to recategorise");
+                } finally {
+                  setIsRecategorizing(false);
+                }
+              }}
+              variant="outline"
+              disabled={transactions.length === 0 || isRecategorizing}
+              className="border-accent/30 hover:bg-accent/10 text-xs px-2 py-2 flex-1"
+            >
+              {isRecategorizing ? (
+                <>
+                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                  Recat…
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-3 h-3 mr-1" />
+                  Recat
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={() => setDeleteAllDialogOpen(true)}
+              variant="destructive"
+              disabled={transactions.length === 0}
+              className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-2 flex-1"
+            >
+              <Trash2 className="w-3 h-3 mr-1" />
+              Del ({transactions.length})
+            </Button>
+            <Button
+              onClick={() => navigate('/import')}
+              variant="outline"
+              className="border-accent/30 hover:bg-accent/10 text-xs px-2 py-2 flex-1"
+            >
+              <Upload className="w-3 h-3 mr-1" />
+              Import
+            </Button>
+          </div>
+          
+          {/* Second row: Add Transaction (full width, bigger) */}
+          <Button
+            onClick={() => {
+              setFormData({
+                account: accounts[0]?.id || "",
+                payee: "",
+                category: "",
+                amount: 0,
+                date: new Date().toISOString().split('T')[0],
+                notes: "",
+                type: 'expense',
+              });
+              setCreateDialogOpen(true);
+            }}
+            className="bg-gradient-emerald hover:opacity-90 text-sm px-4 py-3 w-full h-12"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Transaction
+          </Button>
+        </div>
       </div>
 
       {/* Sync Status Badge */}
-      <div className="flex items-center gap-3 animate-fade-in-up">
-        <Badge variant="outline" className="bg-accent/20 text-accent border-accent/30">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3 animate-fade-in-up">
+        <Badge variant="outline" className="bg-accent/20 text-accent border-accent/30 text-xs md:text-sm">
           <span className="w-2 h-2 rounded-full bg-accent mr-1.5 animate-pulse"></span>
-          Live sync enabled
+          <span className="hidden sm:inline">Live sync enabled</span>
+          <span className="sm:hidden">Live sync</span>
         </Badge>
-        <Badge variant="outline">
-          {filteredTransactions.length} transactions
+        <Badge variant="outline" className="text-xs md:text-sm">
+          {filteredTransactions.length} {transactionFilter === 'all' ? 'transactions' : transactionFilter}
         </Badge>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
+      {/* Income/Expense Filter Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up">
+        <div 
+          className={`glass-card p-4 rounded-xl cursor-pointer transition-all hover:scale-105 ${
+            transactionFilter === 'income' ? 'ring-2 ring-green-500 bg-green-50 dark:bg-green-950/20' : 'hover:bg-accent/5'
+          }`}
+          onClick={() => setTransactionFilter(transactionFilter === 'income' ? 'all' : 'income')}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Income</p>
+              <p className="text-2xl font-bold text-green-600">{incomeCount}</p>
+            </div>
+            <div className="p-3 rounded-full bg-green-100 dark:bg-green-900/30">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+          </div>
+        </div>
+
+        <div 
+          className={`glass-card p-4 rounded-xl cursor-pointer transition-all hover:scale-105 ${
+            transactionFilter === 'expense' ? 'ring-2 ring-red-500 bg-red-50 dark:bg-red-950/20' : 'hover:bg-accent/5'
+          }`}
+          onClick={() => setTransactionFilter(transactionFilter === 'expense' ? 'all' : 'expense')}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Expenses</p>
+              <p className="text-2xl font-bold text-red-600">{expenseCount}</p>
+            </div>
+            <div className="p-3 rounded-full bg-red-100 dark:bg-red-900/30">
+              <TrendingDown className="w-6 h-6 text-red-600" />
+            </div>
+          </div>
+        </div>
+
+        <div 
+          className={`glass-card p-4 rounded-xl cursor-pointer transition-all hover:scale-105 ${
+            transactionFilter === 'all' ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'hover:bg-accent/5'
+          }`}
+          onClick={() => setTransactionFilter('all')}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">All Transactions</p>
+              <p className="text-2xl font-bold text-blue-600">{transactions.length}</p>
+            </div>
+            <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
+              <RotateCcw className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2 md:gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Search className="absolute left-3 md:left-4 top-1/2 -translate-y-1/2 w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
           <Input
             placeholder="Search transactions..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 h-12 bg-muted/30 border-border/50 focus:border-accent/50 transition-colors"
+            className="pl-10 md:pl-12 h-10 md:h-12 bg-muted/30 border-border/50 focus:border-accent/50 transition-colors text-sm md:text-base"
             aria-label="Search transactions"
           />
         </div>
         <Button
           variant="outline"
-          className="h-12 border-accent/30 hover:bg-accent/10"
+          className="h-10 md:h-12 border-accent/30 hover:bg-accent/10 px-3 md:px-4 text-xs md:text-sm"
         >
-          <Filter className="w-5 h-5 mr-2" />
-          Filter
+          <Filter className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
+          <span className="hidden sm:inline">Filter</span>
+          <span className="sm:hidden">Filter</span>
         </Button>
         <Button
           onClick={() => setBankSyncOpen(true)}
-          className="bg-gradient-emerald hover:opacity-90 transition-opacity h-12 shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+          className="bg-gradient-emerald hover:opacity-90 transition-opacity h-10 md:h-12 shadow-[0_0_20px_rgba(16,185,129,0.3)] px-3 md:px-4 text-xs md:text-sm"
         >
-          <Upload className="w-5 h-5 mr-2" />
-          Import / Sync
+          <Upload className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
+          <span className="hidden sm:inline">Import / Sync</span>
+          <span className="sm:hidden">Import</span>
         </Button>
       </div>
 
       <div className="glass-card p-6 rounded-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">All Transactions</h2>
+          <h2 className="text-xl font-bold">
+            {transactionFilter === 'all' ? 'All Transactions' : 
+             transactionFilter === 'income' ? 'Income Transactions' : 
+             'Expense Transactions'}
+          </h2>
           <Button 
             variant="ghost" 
             size="sm"
@@ -300,7 +664,7 @@ export default function Transactions() {
               <TransactionItem
                 merchant={getPayeeName(transaction.payee)}
                 category={getCategoryName(transaction.category)}
-                amount={transaction.amount / 100}
+                amount={transaction.amount}
                 date={formatDate(transaction.date)}
               />
               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
@@ -313,7 +677,7 @@ export default function Transactions() {
                       account: transaction.account,
                       payee: transaction.payee,
                       category: transaction.category,
-                      amount: Math.abs(transaction.amount / 100),
+                      amount: Math.abs(transaction.amount),
                       date: transaction.date,
                       notes: transaction.notes || "",
                       type: transaction.amount < 0 ? 'expense' : 'income',
@@ -337,6 +701,33 @@ export default function Transactions() {
       </div>
 
       <BankSyncModal open={bankSyncOpen} onOpenChange={setBankSyncOpen} />
+
+      {isRecategorizing && (
+        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg bg-white text-black border border-gray-200 shadow-xl">
+          <div className="flex items-center gap-4">
+            <div className="min-w-[180px]">
+              <div className="text-xs font-semibold tracking-wide">Recategorising</div>
+              <div className="text-xs font-mono mt-0.5">
+                Categorised {recatUpdated}/{recatTotal} • Left {Math.max(recatTotal - recatProcessed, 0)}
+              </div>
+              <div className="mt-2 h-1.5 w-full bg-gray-100 rounded">
+                <div
+                  className="h-1.5 rounded bg-black"
+                  style={{ width: `${recatTotal > 0 ? Math.min(100, Math.round((recatProcessed / recatTotal) * 100)) : 0}%` }}
+                />
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { stopRef.current = true; }}
+              className="h-7 px-2 text-xs"
+            >
+              Stop
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Create Transaction Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -384,7 +775,7 @@ export default function Transactions() {
               <Input
                 value={formData.payee}
                 onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
-                placeholder="Enter payee name"
+                placeholder="e.g., Starbucks, Amazon, John Doe"
               />
             </div>
             <div className="grid gap-2">
@@ -397,7 +788,7 @@ export default function Transactions() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.filter(c => !c.is_income).map((category) => (
+                  {categories.filter(c => formData.type === 'income' ? c.is_income : !c.is_income).map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
@@ -458,7 +849,7 @@ export default function Transactions() {
               <Input
                 value={formData.payee}
                 onChange={(e) => setFormData({ ...formData, payee: e.target.value })}
-                placeholder="Enter payee name"
+                placeholder="e.g., Starbucks, Amazon, John Doe"
               />
             </div>
             <div className="grid gap-2">
@@ -471,7 +862,7 @@ export default function Transactions() {
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.filter(c => !c.is_income).map((category) => (
+                  {categories.filter(c => formData.type === 'income' ? c.is_income : !c.is_income).map((category) => (
                     <SelectItem key={category.id} value={category.id}>
                       {category.name}
                     </SelectItem>
@@ -514,6 +905,64 @@ export default function Transactions() {
               Update Transaction
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete All Confirmation Dialog */}
+      <Dialog open={deleteAllDialogOpen} onOpenChange={setDeleteAllDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Delete All Transactions
+            </DialogTitle>
+            <DialogDescription className="text-left">
+              ⚠️ <strong>This action cannot be undone!</strong>
+              <br /><br />
+              You are about to permanently delete <strong>{transactions.length} transactions</strong>.
+              <br /><br />
+              To confirm, please type <code className="bg-muted px-2 py-1 rounded text-sm font-mono">delete all transactions</code> exactly:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type 'delete all transactions' to confirm"
+              className="font-mono"
+              disabled={isDeleting}
+            />
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteAllDialogOpen(false);
+                  setDeleteConfirmText("");
+                }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteAllTransactions}
+                disabled={deleteConfirmText !== "delete all transactions" || isDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete All Transactions
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

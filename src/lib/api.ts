@@ -54,6 +54,7 @@ export interface Account {
   balance?: number;
   bank?: string;
   account_sync_source?: string;
+  currency?: string;
 }
 
 export interface Transaction {
@@ -217,6 +218,10 @@ export class ActualAPI {
   };
 
   constructor(config: ApiConfig) {
+    // Use proxy path to avoid CORS issues in development
+    if (import.meta.env.DEV && config.baseUrl === 'http://localhost:5006') {
+      config.baseUrl = '/api';
+    }
     this.config = config;
   }
 
@@ -323,29 +328,48 @@ export class ActualAPI {
   // Account Management
   async getAccounts(): Promise<Account[]> {
     try {
-      // Use the sync endpoint to get accounts
-      const response = await this.request<any>('/sync/sync', {
+      // Try direct GET endpoint first (faster)
+      const response = await this.request<Account[]>('/accounts', {
+        method: 'GET',
+      });
+      
+      // If direct endpoint works, use it
+      if (response && Array.isArray(response)) {
+        return response.map((account: any) => ({
+          id: account.id,
+          name: account.name,
+          type: account.type || 'checking',
+          offbudget: account.offbudget || false,
+          closed: account.closed || false,
+          balance: account.balance || 0,
+          bank: account.bank,
+          account_sync_source: account.account_sync_source,
+        }));
+      }
+      
+      // Fallback to sync endpoint
+      const messages: any[] = [
+        {
+          dataset: 'accounts',
+          row: null,
+          column: null,
+        },
+      ];
+      
+      const syncResponse = await this.request<any>('/sync/sync', {
         method: 'POST',
-        body: JSON.stringify({
-          messages: [
-            {
-              dataset: 'accounts',
-              row: null,
-              column: null,
-            },
-          ],
-        }),
+        body: JSON.stringify({ messages }),
       });
       
       // Parse the response to get accounts
-      const accounts = response?.messages?.find((m: any) => m.dataset === 'accounts')?.data || [];
+      const accounts = syncResponse?.messages?.find((m: any) => m.dataset === 'accounts')?.data || [];
       
       return accounts.map((account: any) => ({
-        id: account.id || account.account_id,
-        name: account.name || 'Unnamed Account',
+        id: account.id,
+        name: account.name,
         type: account.type || 'checking',
-        offbudget: account.offbudget === 1,
-        closed: account.closed === 1,
+        offbudget: account.offbudget || false,
+        closed: account.closed || false,
         balance: account.balance || 0,
         bank: account.bank,
         account_sync_source: account.account_sync_source,
@@ -360,7 +384,40 @@ export class ActualAPI {
   // Transactions
   async getTransactions(accountId?: string, startDate?: string, endDate?: string): Promise<Transaction[]> {
     try {
-      // Use the sync endpoint to get transactions
+      // Try direct GET endpoint first (faster)
+      const directResponse = await this.request<Transaction[]>('/transactions', {
+        method: 'GET',
+      });
+      
+      // If direct endpoint works, use it
+      if (directResponse && Array.isArray(directResponse)) {
+        return directResponse
+          .filter((tx: any) => {
+            // Apply filters
+            if (accountId && tx.account !== accountId) return false;
+            if (startDate && tx.date < startDate.replace(/-/g, '')) return false;
+            if (endDate && tx.date > endDate.replace(/-/g, '')) return false;
+            return true;
+          })
+          .map((tx: any) => ({
+            id: tx.id || tx.transaction_id,
+            account: tx.account,
+            payee: tx.payee || undefined,
+            payee_name: tx.payee_name || undefined,
+            imported_payee: tx.imported_payee || undefined,
+            category: tx.category || undefined,
+            date: tx.date ? `${tx.date.slice(0,4)}-${tx.date.slice(4,6)}-${tx.date.slice(6,8)}` : new Date().toISOString().split('T')[0],
+            amount: tx.amount || 0,
+            notes: tx.notes || undefined,
+            imported_id: tx.imported_id || undefined,
+            transfer_id: tx.transfer_id || undefined,
+            cleared: tx.cleared === 1,
+            reconciled: tx.reconciled === 1,
+            subtransactions: [],
+          }));
+      }
+      
+      // Fallback to sync endpoint
       const messages: any[] = [
         {
           dataset: 'transactions',
@@ -440,6 +497,41 @@ export class ActualAPI {
   // Category Management
   async getCategories(grouped: boolean = false): Promise<Category[] | CategoryGroup[]> {
     try {
+      // Try direct GET endpoint first (faster and works)
+      const categoriesResponse = await this.request<Category[]>('/categories', {
+        method: 'GET',
+      });
+      
+      if (categoriesResponse && Array.isArray(categoriesResponse)) {
+        const categories = categoriesResponse.map((cat: any) => ({
+          id: cat.id,
+          name: cat.name || 'Unnamed Category',
+          cat_group: cat.cat_group,
+          is_income: cat.is_income || false,
+          sort_order: cat.sort_order || 0,
+        }));
+        
+        if (!grouped) {
+          return categories;
+        }
+        
+        // Group categories by cat_group for grouped response
+        const groupsMap = new Map();
+        categories.forEach(cat => {
+          if (!groupsMap.has(cat.cat_group)) {
+            groupsMap.set(cat.cat_group, {
+              id: cat.cat_group,
+              name: cat.cat_group.replace('grp-', '').replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+              categories: []
+            });
+          }
+          groupsMap.get(cat.cat_group).categories.push(cat);
+        });
+        
+        return Array.from(groupsMap.values());
+      }
+      
+      // Fallback to sync endpoint
       const response = await this.request<any>('/sync/sync', {
         method: 'POST',
         body: JSON.stringify({
@@ -701,27 +793,20 @@ export class ActualAPI {
   // Account Management
   async createAccount(account: Partial<Account>): Promise<string> {
     try {
-      const accountId = `acc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const message = {
-        dataset: 'accounts',
-        row: {
-          id: accountId,
+      console.log('Creating account with Supabase API:', account);
+      
+      const response = await this.request('/accounts', {
+        method: 'POST',
+        body: JSON.stringify({
           name: account.name || 'New Account',
           type: account.type || 'checking',
-          offbudget: account.offbudget ? 1 : 0,
-          closed: 0,
-          balance: account.balance || 0,
-          starting_balance: account.balance || 0,
-        },
-        column: null,
-      };
-      
-      await this.request('/sync/sync', {
-        method: 'POST',
-        body: JSON.stringify({ messages: [message] }),
+          balance: Math.round((account.balance || 0) * 100), // Convert to cents
+          closed: account.closed || false,
+        }),
       });
       
-      return accountId;
+      console.log('Account created successfully:', response);
+      return (response as any).data.id;
     } catch (error) {
       console.error('Failed to create account:', error);
       throw error;
@@ -913,6 +998,40 @@ export class ActualAPI {
     console.log('Merging payees:', { targetId, mergeIds });
   }
 
+  // CSV Import using Actual Budget's proven API
+  async importTransactions(accountId: string, file: File): Promise<{ imported: number; errors?: string[] }> {
+    try {
+      console.log('🔄 Importing transactions using Actual Budget API...');
+      
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('accountId', accountId);
+      
+      // Use Actual Budget's import endpoint
+      const response = await this.request('/import-transactions', {
+        method: 'POST',
+        body: formData,
+        // Don't set Content-Type header - let browser set it for FormData
+        headers: {
+          'Authorization': `Bearer ${this.config.token}`,
+        },
+      });
+      
+      if (response && typeof response === 'object' && 'imported' in response) {
+        const result = response as { imported: number; errors?: string[] };
+        console.log(`✅ Successfully imported ${result.imported} transactions`);
+        return result;
+      } else {
+        throw new Error('No transactions were imported');
+      }
+      
+    } catch (error) {
+      console.error('❌ Import failed:', error);
+      throw error;
+    }
+  }
+
   // Utility Methods
   async getServerVersion(): Promise<string> {
     try {
@@ -943,7 +1062,8 @@ let apiInstance: ActualAPI | null = null;
 export async function initAPI(config?: ApiConfig) {
   if (!config) {
     config = {
-      baseUrl: 'http://localhost:5006',
+      // Use proxy path to avoid CORS issues
+      baseUrl: import.meta.env.DEV ? '/api' : 'http://localhost:5006',
       token: localStorage.getItem('actual-token') || undefined,
     };
   }

@@ -8,23 +8,23 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Default to dark theme (cyberpunk) */
+    /* Default to dark theme (cyberpunk) - ALL TEXT WHITE */
     --background: 0 0% 5%;
-    --foreground: 120 100% 50%;
+    --foreground: 0 0% 100%; /* White text */
     --card: 0 0% 8%;
-    --card-foreground: 120 100% 50%;
+    --card-foreground: 0 0% 100%; /* White text */
     --popover: 0 0% 8%;
-    --popover-foreground: 120 100% 50%;
+    --popover-foreground: 0 0% 100%; /* White text */
     --primary: 0 0% 0%;
-    --primary-foreground: 120 100% 50%;
+    --primary-foreground: 0 0% 100%; /* White text */
     --secondary: 120 100% 50%;
-    --secondary-foreground: 0 0% 0%;
+    --secondary-foreground: 0 0% 100%; /* White text */
     --muted: 0 0% 15%;
-    --muted-foreground: 120 50% 70%;
+    --muted-foreground: 0 0% 85%; /* Light gray text */
     --accent: 120 100% 50%;
-    --accent-foreground: 0 0% 0%;
+    --accent-foreground: 0 0% 100%; /* White text */
     --destructive: 0 100% 50%;
-    --destructive-foreground: 0 0% 0%;
+    --destructive-foreground: 0 0% 100%; /* White text */
     --border: 120 100% 50% / 0.3;
     --input: 0 0% 10%;
     --ring: 120 100% 50%;
@@ -35,11 +35,11 @@ All colors MUST be HSL.
     --gradient-emerald-subtle: linear-gradient(135deg, hsl(120 100% 50% / 0.1), hsl(120 100% 40% / 0.15));
     --glow-emerald: 0 0 30px hsl(120 100% 50% / 0.5);
     --sidebar-background: 0 0% 5%;
-    --sidebar-foreground: 120 100% 50%;
+    --sidebar-foreground: 0 0% 100%; /* White text */
     --sidebar-primary: 120 100% 50%;
-    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-primary-foreground: 0 0% 100%; /* White text */
     --sidebar-accent: 0 0% 10%;
-    --sidebar-accent-foreground: 120 100% 50%;
+    --sidebar-accent-foreground: 0 0% 100%; /* White text */
     --sidebar-border: 120 100% 50% / 0.3;
     --sidebar-ring: 120 100% 50%;
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -58,7 +58,7 @@ All colors MUST be HSL.
     --secondary: 158 50% 25%;
     --secondary-foreground: 40 30% 98%;
     --muted: 40 20% 90%;
-    --muted-foreground: 220 9% 46%;
+    --muted-foreground: 220 13% 25%; /* Much darker - was 46%, now 25% */
     --accent: 158 64% 20%;
     --accent-foreground: 40 30% 98%;
     --destructive: 0 84% 60%;
@@ -98,5 +98,47 @@ All colors MUST be HSL.
   
   .glass-card-hover {
     @apply glass-card hover:bg-card/60 hover:border-accent/50 hover:shadow-[0_0_30px_rgba(0,255,0,0.4)] transition-all duration-300;
+  }
+  
+  /* Dark theme text overrides - ensure ALL text is white */
+  :root {
+    h1, h2, h3, h4, h5, h6 {
+      color: hsl(0 0% 100%);
+    }
+    
+    p, span, div, label, button {
+      color: hsl(0 0% 100%);
+    }
+    
+    .text-muted-foreground {
+      color: hsl(0 0% 85%) !important;
+    }
+    
+    .text-foreground {
+      color: hsl(0 0% 100%) !important;
+    }
+  }
+  
+  /* Light theme text improvements for better contrast */
+  [data-theme="light"] {
+    h1, h2, h3, h4, h5, h6,
+    p, span, div, label, button {
+      color: inherit;
+    }
+    
+    /* Ensure secondary text is dark enough to read */
+    .text-muted-foreground {
+      color: hsl(220 13% 25%) !important; /* Dark gray instead of light gray */
+    }
+    
+    /* Make sure small text is readable */
+    .text-xs {
+      color: hsl(220 13% 30%) !important;
+    }
+    
+    /* Card descriptions and subtitles */
+    .text-sm.text-muted-foreground {
+      color: hsl(220 13% 20%) !important;
+    }
   }
 }

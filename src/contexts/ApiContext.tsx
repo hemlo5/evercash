@@ -1,11 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { initAPI, getAPI, ActualAPI } from '@/lib/api';
+import { initSupabaseAPI, getSupabaseAPI, type SupabaseAPI } from '@/lib/supabase-api';
 import { toast } from 'sonner';
 
 interface ApiContextType {
-  api: ActualAPI | null;
+  api: SupabaseAPI | null;
   loading: boolean;
-  error: Error | null;
   isAuthenticated: boolean;
   login: (password: string) => Promise<void>;
   logout: () => void;
@@ -15,7 +14,7 @@ interface ApiContextType {
 const ApiContext = createContext<ApiContextType | undefined>(undefined);
 
 export function ApiProvider({ children }: { children: ReactNode }) {
-  const [api, setApi] = useState<ActualAPI | null>(null);
+  const [api, setApi] = useState<SupabaseAPI | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -23,17 +22,10 @@ export function ApiProvider({ children }: { children: ReactNode }) {
   const initialize = async () => {
     try {
       setLoading(true);
-      setError(null);
+      const baseUrl = import.meta.env.DEV ? '/api' : 'http://localhost:5006';
+      console.log(`Initializing API connection to ${baseUrl}...`);
+      const apiInstance = initSupabaseAPI(baseUrl);
       
-      console.log('Initializing API connection to http://localhost:5006...');
-      
-      // Initialize the API client with the correct base URL
-      const apiInstance = await initAPI({
-        baseUrl: 'http://localhost:5006',
-        token: localStorage.getItem('actual-token') || undefined
-      });
-      
-      console.log('API instance created successfully');
       
       // Check if we have a stored token
       const token = localStorage.getItem('actual-token');
@@ -91,8 +83,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(true);
       
       // Show secure login message
-      const message = result.message || 'Successfully logged in';
-      toast.success(message, {
+      toast.success('Successfully logged in', {
         description: '🔐 Your data is encrypted and secure',
         duration: 5000,
       });
@@ -116,20 +107,18 @@ export function ApiProvider({ children }: { children: ReactNode }) {
   const retryConnection = async () => {
     await initialize();
   };
-
   useEffect(() => {
     initialize();
   }, []);
 
   return (
-    <ApiContext.Provider value={{ 
-      api, 
-      loading, 
-      error, 
+    <ApiContext.Provider value={{
+      api,
+      loading,
       isAuthenticated,
       login,
       logout,
-      retryConnection
+      retryConnection: initialize,
     }}>
       {children}
     </ApiContext.Provider>

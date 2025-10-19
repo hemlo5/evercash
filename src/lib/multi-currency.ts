@@ -3,6 +3,8 @@
  * Handle multiple currencies and exchange rates
  */
 
+import { useState, useEffect } from 'react';
+
 export interface Currency {
   code: string;
   name: string;
@@ -196,7 +198,7 @@ export class CurrencyService {
         currency: currencyCode,
         minimumFractionDigits: currency.decimals,
         maximumFractionDigits: currency.decimals
-      }).format(amount / Math.pow(10, currency.decimals * 100)); // Assuming amount is in smallest unit
+      }).format(amount / 100); // Assuming amount is in cents
     } catch {
       // Fallback formatting
       const formatted = (amount / 100).toFixed(currency.decimals);
@@ -268,27 +270,4 @@ export function useCurrency() {
     format,
     currencies: CURRENCIES
   };
-}
-
-// Currency selector component
-export function CurrencySelector({ 
-  value,
-  onChange 
-}: {
-  value: string;
-  onChange: (currency: string) => void;
-}) {
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-    >
-      {CURRENCIES.map(currency => (
-        <option key={currency.code} value={currency.code}>
-          {currency.symbol} {currency.code} - {currency.name}
-        </option>
-      ))}
-    </select>
-  );
 }

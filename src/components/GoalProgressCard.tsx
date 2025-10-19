@@ -2,7 +2,11 @@ import { LucideIcon } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import { Save, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 
 interface GoalProgressCardProps {
   category: string;
@@ -11,6 +15,7 @@ interface GoalProgressCardProps {
   months: number;
   icon: LucideIcon;
   onUpdate?: (target: number, months: number) => void;
+  onDelete?: () => void;
 }
 
 // Integration note: Use useGoal(categoryId) to sync with Actual's goal system
@@ -22,9 +27,30 @@ export function GoalProgressCard({
   months,
   icon: Icon,
   onUpdate,
+  onDelete,
 }: GoalProgressCardProps) {
-  const percentage = Math.min((current / target) * 100, 100);
-  const monthlyTarget = target / months;
+  const [localTarget, setLocalTarget] = useState(target);
+  const [localMonths, setLocalMonths] = useState(months);
+  const [hasChanges, setHasChanges] = useState(false);
+  const { formatAmount } = useSimpleCurrency();
+  
+  const percentage = Math.min((current / localTarget) * 100, 100);
+  const monthlyTarget = (localTarget / 100) / localMonths; // Convert cents to dollars first
+  
+  const handleTargetChange = (newTarget: number) => {
+    setLocalTarget(newTarget * 100); // Convert to cents
+    setHasChanges(true);
+  };
+  
+  const handleMonthsChange = (newMonths: number) => {
+    setLocalMonths(newMonths);
+    setHasChanges(true);
+  };
+  
+  const handleUpdate = () => {
+    onUpdate?.(localTarget, localMonths);
+    setHasChanges(false);
+  };
   
   const data = [
     { name: "Current", value: percentage },
@@ -40,9 +66,19 @@ export function GoalProgressCard({
         <div className="flex-1">
           <h3 className="font-bold">{category}</h3>
           <p className="text-sm text-muted-foreground">
-            ${current.toFixed(0)} / ${target.toFixed(0)}
+            {formatAmount(current / 100)} / {formatAmount(localTarget / 100)}
           </p>
         </div>
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
       <div className="relative h-32">
@@ -74,19 +110,19 @@ export function GoalProgressCard({
           <Label className="text-xs text-muted-foreground">Target Amount</Label>
           <Input
             type="number"
-            value={target}
-            onChange={(e) => onUpdate?.(Number(e.target.value), months)}
+            value={localTarget / 100} // Show dollars instead of cents
+            onChange={(e) => handleTargetChange(Number(e.target.value))}
             className="mt-1 bg-muted/30"
           />
         </div>
         
         <div>
           <Label className="text-xs text-muted-foreground mb-2 block">
-            Timeline: {months} months
+            Timeline: {localMonths} months
           </Label>
           <Slider
-            value={[months]}
-            onValueChange={([value]) => onUpdate?.(target, value)}
+            value={[localMonths]}
+            onValueChange={([value]) => handleMonthsChange(value)}
             min={1}
             max={24}
             step={1}
@@ -96,8 +132,18 @@ export function GoalProgressCard({
 
         <div className="glass-card p-3 rounded-lg border-accent/10">
           <p className="text-xs text-muted-foreground">Monthly target</p>
-          <p className="text-lg font-bold">${monthlyTarget.toFixed(2)}</p>
+          <p className="text-lg font-bold">{formatAmount(monthlyTarget)}</p>
         </div>
+        
+        {hasChanges && (
+          <Button 
+            onClick={handleUpdate}
+            className="w-full bg-gradient-emerald hover:opacity-90 transition-opacity"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            Update Goal
+          </Button>
+        )}
       </div>
     </div>
   );

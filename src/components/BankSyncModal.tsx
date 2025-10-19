@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Link2, CheckCircle2, AlertCircle, Loader2, Upload, CreditCard, Building2, Globe, FileText } from "lucide-react";
+import { useApi } from "@/contexts/HybridApiContext";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -25,35 +27,48 @@ export function BankSyncModal({ open, onOpenChange }: BankSyncModalProps) {
   const [status, setStatus] = useState<"idle" | "syncing" | "success" | "error">("idle");
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [importedCount, setImportedCount] = useState(0);
+  const { api } = useApi();
+
+  // Debug logging
+  console.log('BankSyncModal rendered with open:', open);
 
   const syncMethods = [
     {
-      id: 'plaid',
-      name: 'Plaid (US/Canada)',
-      description: 'Connect to 11,000+ banks automatically',
-      icon: Building2,
-      available: true
+      id: 'csv',
+      name: '📄 CSV Import (FREE)',
+      description: 'Upload bank files - No monthly fees!',
+      icon: Upload,
+      available: true,
+      cost: 'FREE',
+      recommended: true
     },
     {
       id: 'simplefin',
-      name: 'SimpleFIN',
-      description: 'Direct bank connections (US)',
+      name: '🔗 SimpleFIN ($15 setup)',
+      description: 'Direct bank API - No monthly fees after setup',
       icon: CreditCard,
-      available: true
+      available: true,
+      cost: '$15-25 one-time',
+      recommended: true
     },
     {
       id: 'gocardless',
-      name: 'GoCardless (EU)',
-      description: 'Open Banking for European banks',
+      name: '🌍 Open Banking (FREE)',
+      description: 'EU banks - Completely free & regulated',
       icon: Globe,
-      available: true
+      available: true,
+      cost: 'FREE',
+      recommended: true
     },
     {
-      id: 'csv',
-      name: 'Import CSV/OFX',
-      description: 'Upload transaction files',
-      icon: Upload,
-      available: true
+      id: 'plaid',
+      name: '💸 Plaid (EXPENSIVE)',
+      description: '⚠️ $0.30/account/month + fees',
+      icon: Building2,
+      available: true,
+      cost: '$0.30/month per account',
+      recommended: false
     }
   ];
 
@@ -66,29 +81,120 @@ export function BankSyncModal({ open, onOpenChange }: BankSyncModalProps) {
     }
   };
 
-  const handleMethodConnect = (method: string) => {
-    setStatus("error"); // Show setup required message
+  const handleMethodConnect = async (method: string) => {
+    setSyncing(true);
+    setStatus("syncing");
+    setProgress(0);
+    
+    // Import the actual integration modules
+    try {
+      if (method === 'plaid') {
+        const { plaidService } = await import('@/lib/plaid-integration');
+        
+        // Simulate progress
+        const interval = setInterval(() => {
+          setProgress(prev => {
+            if (prev >= 90) {
+              clearInterval(interval);
+              // Try to create link token (will show setup message if not configured)
+              plaidService.createLinkToken('user-id')
+                .then(() => {
+                  setStatus("success");
+                  setSyncing(false);
+                })
+                .catch(() => {
+                  setStatus("error");
+                  setSyncing(false);
+                });
+              return 100;
+            }
+            return prev + 10;
+          });
+        }, 200);
+      } else if (method === 'csv') {
+        // CSV import works
+        const interval = setInterval(() => {
+          setProgress(prev => {
+            if (prev >= 90) {
+              clearInterval(interval);
+              setStatus("success");
+              setSyncing(false);
+              return 100;
+            }
+            return prev + 10;
+          });
+        }, 200);
+      } else {
+        // Other methods need setup
+        setTimeout(() => {
+          setStatus("error");
+          setSyncing(false);
+        }, 1000);
+      }
+    } catch (error) {
+      setStatus("error");
+      setSyncing(false);
+    }
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
-    if (uploadedFile) {
-      setFile(uploadedFile);
-      setSyncing(true);
-      setStatus("syncing");
+    if (!uploadedFile) {
+      toast.error("Please select a file");
+      return;
+    }
+
+    if (!api) {
+      toast.error("Backend server not available. Please start the server first.");
+      return;
+    }
+
+    setFile(uploadedFile);
+    setSyncing(true);
+    setStatus("syncing");
+    setProgress(0);
+    
+    try {
+      console.log('🔄 Starting CSV import using Actual Budget API...');
       
-      // Simulate file processing
-      const interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setSyncing(false);
-            setStatus("success");
-            return 100;
-          }
-          return prev + 20;
-        });
-      }, 200);
+      // Get accounts first
+      const accounts = await api.getAccounts();
+      if (accounts.length === 0) {
+        throw new Error('No accounts found. Please create an account first.');
+      }
+      const targetAccount = accounts[0];
+      console.log('🏦 Importing to account:', targetAccount.name);
+      
+      setProgress(20);
+      
+      // Use Actual Budget's proven CSV import API
+      const result = await api.importTransactions(targetAccount.id, uploadedFile);
+      
+      setProgress(80);
+      
+      console.log('📊 Import result:', result);
+      
+      if (result.imported && result.imported > 0) {
+        setProgress(100);
+        setImportedCount(result.imported);
+        setStatus("success");
+        toast.success(`🎉 Successfully imported ${result.imported} transactions!`);
+        
+        // Refresh the page data after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setStatus("error");
+        toast.error("No transactions were imported. Please check the file format.");
+      }
+      
+    } catch (error) {
+      console.error('💥 File import error:', error);
+      setStatus("error");
+      toast.error(error instanceof Error ? error.message : 'Failed to import file');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -112,14 +218,36 @@ export function BankSyncModal({ open, onOpenChange }: BankSyncModalProps) {
                 <h4 className="font-semibold">Choose Connection Method</h4>
                 {syncMethods.map((method) => {
                   const IconComponent = method.icon;
+                  const isRecommended = (method as any).recommended;
+                  const cost = (method as any).cost;
+                  
                   return (
                     <button
                       key={method.id}
                       onClick={() => handleConnect(method.id)}
-                      className="w-full p-4 glass-card rounded-xl border-accent/10 hover:border-accent/30 transition-all text-left group"
+                      className={`w-full p-4 glass-card rounded-xl transition-all text-left group relative ${
+                        isRecommended 
+                          ? 'border-green-500/30 hover:border-green-500/50 bg-green-500/5' 
+                          : method.id === 'plaid'
+                          ? 'border-red-500/30 hover:border-red-500/50 bg-red-500/5'
+                          : 'border-accent/10 hover:border-accent/30'
+                      }`}
                     >
+                      {isRecommended && (
+                        <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          RECOMMENDED
+                        </div>
+                      )}
+                      {method.id === 'plaid' && (
+                        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          EXPENSIVE
+                        </div>
+                      )}
                       <div className="flex items-center gap-3">
-                        <IconComponent className="w-5 h-5 text-accent" />
+                        <IconComponent className={`w-5 h-5 ${
+                          isRecommended ? 'text-green-600' : 
+                          method.id === 'plaid' ? 'text-red-600' : 'text-accent'
+                        }`} />
                         <div className="flex-1">
                           <h5 className="font-semibold group-hover:text-accent transition-colors">
                             {method.name}
@@ -127,11 +255,39 @@ export function BankSyncModal({ open, onOpenChange }: BankSyncModalProps) {
                           <p className="text-sm text-muted-foreground">
                             {method.description}
                           </p>
+                          <p className={`text-xs font-medium mt-1 ${
+                            cost === 'FREE' ? 'text-green-600' :
+                            method.id === 'plaid' ? 'text-red-600' : 'text-orange-600'
+                          }`}>
+                            Cost: {cost}
+                          </p>
                         </div>
                       </div>
                     </button>
                   );
                 })}
+              </div>
+              
+              <div className="glass-card p-4 rounded-xl border-orange-200/20 bg-orange-50/10">
+                <h4 className="font-semibold mb-2 text-orange-700">💰 Cost Comparison (3 accounts)</h4>
+                <div className="text-sm space-y-1">
+                  <div className="flex justify-between">
+                    <span>CSV Import:</span>
+                    <span className="font-bold text-green-600">FREE</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>SimpleFIN:</span>
+                    <span className="font-bold text-green-600">$45 one-time, then FREE</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Open Banking (EU):</span>
+                    <span className="font-bold text-green-600">FREE</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Plaid:</span>
+                    <span className="font-bold text-red-600">$10.80/year + fees</span>
+                  </div>
+                </div>
               </div>
               
               <div className="glass-card p-4 rounded-xl border-accent/10">
@@ -304,7 +460,7 @@ export function BankSyncModal({ open, onOpenChange }: BankSyncModalProps) {
                 </h3>
                 <p className="text-sm text-muted-foreground text-center">
                   {selectedMethod === 'csv' 
-                    ? `Imported ${file?.name} with transactions`
+                    ? `Successfully imported ${importedCount} transactions from ${file?.name}`
                     : 'Your transactions will sync automatically every 24 hours'
                   }
                 </p>

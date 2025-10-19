@@ -33,7 +33,7 @@ const config = {
     },
     general: {
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 60000,
-      max: parseInt(process.env.RATE_LIMIT_MAX_GENERAL) || 50,
+      max: process.env.NODE_ENV === 'development' ? 10000 : (parseInt(process.env.RATE_LIMIT_MAX_GENERAL) || 1000), // Much higher for dev
       message: 'Too many requests. Please slow down.',
       standardHeaders: true,
       legacyHeaders: false
@@ -44,12 +44,21 @@ const config = {
       const allowedOrigins = [
         process.env.CLIENT_URL || 'http://localhost:3001',
         'http://localhost:3000',
+        'http://localhost:8080',
+        'http://[::]:8080',
         'https://emerald-budget.com',
-        'https://app.emerald-budget.com'
+        'https://app.emerald-budget.com',
+        'https://evercash.in',
+        'https://app.evercash.in'
       ];
       
       // Allow requests with no origin (like mobile apps)
       if (!origin) return callback(null, true);
+      
+      // In development, allow all origins to simplify mobile/ngrok testing
+      if (process.env.NODE_ENV !== 'production') {
+        return callback(null, true);
+      }
       
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
@@ -145,8 +154,10 @@ const getCSPConfig = (nonce) => {
     frameAncestors: ["'none'"],
     baseUri: ["'self'"],
     manifestSrc: ["'self'"],
-    upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : undefined,
-    blockAllMixedContent: process.env.NODE_ENV === 'production' ? [] : undefined
+    ...(process.env.NODE_ENV === 'production' && {
+      upgradeInsecureRequests: [],
+      blockAllMixedContent: []
+    })
   };
   
   return directives;
