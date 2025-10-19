@@ -2,7 +2,7 @@ services:
   - type: web
     name: evercash-api
     runtime: node
-    plan: free
+    plan: starter
     rootDir: emerald-budget-server
     buildCommand: |
       corepack enable || true
@@ -35,7 +35,7 @@ services:
   - type: web
     name: evercash-web
     runtime: static
-    plan: free
+    plan: starter
     rootDir: .
     buildCommand: |
       corepack enable || true
