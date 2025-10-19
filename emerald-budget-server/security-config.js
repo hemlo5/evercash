@@ -170,6 +170,9 @@ const generateSessionToken = () => {
 
 // HTTPS redirect middleware for production
 const httpsRedirect = (req, res, next) => {
+  if (req.path === '/health') {
+    return next();
+  }
   if (process.env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
     return res.redirect(`https://${req.header('host')}${req.url}`);
   }
