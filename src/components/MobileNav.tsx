@@ -39,7 +39,7 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
 
       {/* Sliding drawer */}
       <div
-        className={`fixed top-0 right-0 h-full w-80 bg-white dark:bg-gray-900 shadow-xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed top-0 right-0 h-full w-80 bg-background text-foreground shadow-xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -50,12 +50,12 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
               EC
             </div>
             <div>
-              <h2 className="font-bold text-lg bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">EVERCASH</h2>
+              <h2 className="font-bold text-lg text-foreground dark:bg-gradient-to-r dark:from-emerald-400 dark:to-emerald-600 dark:bg-clip-text dark:text-transparent">EVERCASH</h2>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-foreground hover:bg-accent/10">
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -63,7 +63,7 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
 
         {/* Navigation */}
         <div className="p-4">
-          <p className="px-3 text-emerald-500/70 dark:text-white/70 uppercase text-xs tracking-wider font-semibold mb-4">
+          <p className="px-3 text-muted-foreground uppercase text-xs tracking-wider font-semibold mb-4">
             Tools & Features
           </p>
           <nav className="space-y-1">
@@ -76,8 +76,8 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                     isActive
-                      ? "bg-gradient-to-r from-green-500 to-green-400 text-white shadow-lg shadow-green-500/30 font-semibold"
-                      : "text-emerald-600 dark:text-white hover:text-green-400 hover:bg-green-500/10 font-medium"
+                      ? "bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/30 font-semibold"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/10 font-medium"
                   }`
                 }
               >
@@ -116,7 +116,7 @@ export function MobileNavButton() {
         variant="ghost"
         size="sm"
         onClick={() => setIsOpen(true)}
-        className="md:hidden p-2"
+        className="md:hidden p-2 rounded-lg border border-border/70 text-gray-800 dark:text-white hover:bg-accent/10 bg-background/80"
       >
         <Menu className="w-5 h-5" />
       </Button>
