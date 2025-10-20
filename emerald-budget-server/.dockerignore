@@ -1,0 +1,47 @@
+# VCS
+.git
+.gitignore
+
+# Env and secrets
+.env
+.env.*
+*.env
+
+# Logs and caches
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.cache
+.tmp
+.tmp*
+
+# Node
+node_modules
+
+# Builds and coverage
+build
+build-*
+dist
+dist-*
+coverage
+
+# IDE/editor
+.vscode
+.idea
+*.swp
+
+# Tests and artifacts
+cypress
+.cypress
+screenshots
+videos
+__tests__
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Prevent accidental recursion if a nested copy appears
+emerald-budget-server
