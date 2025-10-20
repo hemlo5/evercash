@@ -8,6 +8,8 @@ const session = require('express-session');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
+// Ensure fetch/FormData/Blob available in Node runtime
+const { fetch, FormData, Blob } = require('undici');
 require('dotenv').config();
 
 // Import Supabase configuration
@@ -51,6 +53,16 @@ const upload = multer({
     } else {
       cb(new Error('Only CSV files are allowed'));
     }
+  }
+});
+
+// Separate multer instance for AI endpoints (PDF/images/CSV)
+const aiUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+  fileFilter: (req, file, cb) => {
+    // Be permissive to avoid 500s from filter; downstream service will validate
+    cb(null, true);
   }
 });
 
@@ -638,7 +650,7 @@ app.post('/import-transactions', authenticateUser, upload.single('file'), async 
 });
 
 // AI Proxy: Nanonets extract
-app.post('/ai/nanonets/extract', authenticateUser, upload.single('file'), async (req, res) => {
+app.post('/ai/nanonets/extract', authenticateUser, aiUpload.single('file'), async (req, res) => {
   try {
     if (!process.env.NANONETS_API_KEY) {
       return res.status(500).json({ status: 'error', message: 'NANONETS_API_KEY not configured' });
@@ -646,25 +658,185 @@ app.post('/ai/nanonets/extract', authenticateUser, upload.single('file'), async 
     if (!req.file) {
       return res.status(400).json({ status: 'error', message: 'No file uploaded' });
     }
+    console.log('🧾 Nanonets proxy received file:', {
+      name: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
     const form = new FormData();
     const blob = new Blob([req.file.buffer], { type: req.file.mimetype || 'application/octet-stream' });
     form.append('file', blob, req.file.originalname || 'upload');
+    // Some Nanonets endpoints accept 'files' instead of 'file' – include both for compatibility
+    form.append('files', blob, req.file.originalname || 'upload');
     form.append('output_type', req.body?.output_type || 'markdown');
-    const resp = await fetch('https://extraction-api.nanonets.com/extract', {
+    form.append('format', 'markdown');
+    form.append('output_format', 'markdown');
+    // Attempt 1: Bearer
+    let resp = await fetch('https://extraction-api.nanonets.com/extract', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.NANONETS_API_KEY}` },
+      headers: { Authorization: `Bearer ${process.env.NANONETS_API_KEY}`, Accept: 'application/json' },
       body: form
     });
-    const text = await resp.text();
-    res.status(resp.status).type('application/json').send(text);
+    let text = await resp.text();
+    console.log('🧾 Nanonets upstream (Bearer) status:', resp.status, resp.statusText);
+    console.log('🧾 Nanonets upstream (Bearer) body (first 500 chars):', text.slice(0, 500));
+    if (!resp.ok) {
+      // Attempt 2: x-api-key
+      console.log('🔁 Retrying Nanonets with x-api-key header...');
+      resp = await fetch('https://extraction-api.nanonets.com/extract', {
+        method: 'POST',
+        headers: { 'x-api-key': process.env.NANONETS_API_KEY, Accept: 'application/json' },
+        body: form
+      });
+      text = await resp.text();
+      console.log('🧾 Nanonets upstream (x-api-key) status:', resp.status, resp.statusText);
+      console.log('🧾 Nanonets upstream (x-api-key) body (first 500 chars):', text.slice(0, 500));
+      if (!resp.ok) {
+        // Attempt 3: Basic
+        console.log('🔁 Retrying Nanonets with Basic auth header...');
+        const basic = Buffer.from(`${process.env.NANONETS_API_KEY}:`).toString('base64');
+        resp = await fetch('https://extraction-api.nanonets.com/extract', {
+          method: 'POST',
+          headers: { Authorization: `Basic ${basic}`, Accept: 'application/json' },
+          body: form
+        });
+        text = await resp.text();
+        console.log('🧾 Nanonets upstream (Basic) status:', resp.status, resp.statusText);
+        console.log('🧾 Nanonets upstream (Basic) body (first 500 chars):', text.slice(0, 500));
+
+        // Fallback to PDF.co OCR text if Nanonets failed
+        if (!resp.ok) {
+          console.log('🛟 Falling back to PDF.co text extraction...');
+          if (!process.env.PDFCO_API_KEY) {
+            console.warn('⚠️ PDFCO_API_KEY not configured; cannot fallback');
+            return res.status(502).json({
+              status: 'error',
+              message: 'Nanonets failed and no PDF.co fallback available (missing PDFCO_API_KEY)',
+              upstreamStatus: resp.status,
+              upstreamBody: text.slice(0, 500)
+            });
+          }
+          try {
+            // 1) Upload file to PDF.co
+            const upForm = new FormData();
+            const upBlob = new Blob([req.file.buffer], { type: req.file.mimetype || 'application/pdf' });
+            upForm.append('file', upBlob, req.file.originalname || 'upload.pdf');
+            const upResp = await fetch('https://api.pdf.co/v1/file/upload', {
+              method: 'POST',
+              headers: { 'x-api-key': process.env.PDFCO_API_KEY },
+              body: upForm
+            });
+            const upText = await upResp.text();
+            console.log('🧾 PDF.co upload status:', upResp.status, upResp.statusText);
+            console.log('🧾 PDF.co upload body (first 500 chars):', upText.slice(0, 500));
+            if (!upResp.ok) {
+              return res.status(502).json({ status: 'error', message: 'PDF.co upload failed', details: upText.slice(0, 500) });
+            }
+            let upJson;
+            try { upJson = JSON.parse(upText); } catch { upJson = {}; }
+            const fileUrl = upJson.url || upJson.fileUrl || upJson.body;
+            if (!fileUrl) {
+              return res.status(502).json({ status: 'error', message: 'PDF.co upload: no url in response' });
+            }
+
+            // 2) Convert to text via PDF.co
+            const convResp = await fetch('https://api.pdf.co/v1/pdf/convert/to/text', {
+              method: 'POST',
+              headers: {
+                'x-api-key': process.env.PDFCO_API_KEY,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ url: fileUrl, inline: true })
+            });
+            const convText = await convResp.text();
+            console.log('🧾 PDF.co convert-to-text status:', convResp.status, convResp.statusText);
+            console.log('🧾 PDF.co convert-to-text body (first 500 chars):', convText.slice(0, 500));
+            if (!convResp.ok) {
+              return res.status(502).json({ status: 'error', message: 'PDF.co convert-to-text failed', details: convText.slice(0, 500) });
+            }
+            let convJson;
+            try { convJson = JSON.parse(convText); } catch { convJson = {}; }
+            const content = convJson.body || convJson.text || '';
+            if (!content) {
+              return res.status(502).json({ status: 'error', message: 'PDF.co conversion returned no content' });
+            }
+            return res.status(200).json({ content });
+          } catch (fbErr) {
+            console.error('❌ PDF.co fallback error:', fbErr);
+            return res.status(502).json({ status: 'error', message: 'PDF.co fallback error' });
+          }
+        }
+      }
+    }
+    if (resp.ok) {
+    try {
+      const json = JSON.parse(text);
+      return res.status(200).json(json);
+    } catch {
+      return res.status(200).type('application/json').send(text);
+    }
+  } else {
+    return res.status(502).json({
+      status: 'error',
+      message: 'Nanonets upstream error',
+      upstreamStatus: resp.status,
+      upstreamBody: text.slice(0, 1000)
+    });
+  }
   } catch (err) {
     console.error('Nanonets proxy error:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to process with Nanonets' });
+    // Try PDF.co fallback on thrown errors
+    try {
+      if (!process.env.PDFCO_API_KEY) {
+        return res.status(500).json({ status: 'error', message: 'Failed to process with Nanonets; PDFCO_API_KEY missing for fallback' });
+      }
+      console.log('🛟 Falling back to PDF.co due to error...');
+      const upForm = new FormData();
+      const upBlob = new Blob([req.file.buffer], { type: req.file.mimetype || 'application/pdf' });
+      upForm.append('file', upBlob, req.file.originalname || 'upload.pdf');
+      const upResp = await fetch('https://api.pdf.co/v1/file/upload', {
+        method: 'POST',
+        headers: { 'x-api-key': process.env.PDFCO_API_KEY },
+        body: upForm
+      });
+      const upText = await upResp.text();
+      if (!upResp.ok) {
+        return res.status(502).json({ status: 'error', message: 'PDF.co upload failed', details: upText.slice(0, 500) });
+      }
+      let upJson;
+      try { upJson = JSON.parse(upText); } catch { upJson = {}; }
+      const fileUrl = upJson.url || upJson.fileUrl || upJson.body;
+      if (!fileUrl) {
+        return res.status(502).json({ status: 'error', message: 'PDF.co upload: no url in response' });
+      }
+      const convResp = await fetch('https://api.pdf.co/v1/pdf/convert/to/text', {
+        method: 'POST',
+        headers: {
+          'x-api-key': process.env.PDFCO_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ url: fileUrl, inline: true })
+      });
+      const convText = await convResp.text();
+      if (!convResp.ok) {
+        return res.status(502).json({ status: 'error', message: 'PDF.co convert-to-text failed', details: convText.slice(0, 500) });
+      }
+      let convJson;
+      try { convJson = JSON.parse(convText); } catch { convJson = {}; }
+      const content = convJson.body || convJson.text || '';
+      if (!content) {
+        return res.status(502).json({ status: 'error', message: 'PDF.co conversion returned no content' });
+      }
+      return res.status(200).json({ content });
+    } catch (fbErr) {
+      console.error('❌ PDF.co fallback error (catch):', fbErr);
+      res.status(500).json({ status: 'error', message: 'Failed to process with Nanonets and PDF.co fallback' });
+    }
   }
 });
 
 // AI Proxy: PDF.co upload
-app.post('/ai/pdfco/upload', authenticateUser, upload.single('file'), async (req, res) => {
+app.post('/ai/pdfco/upload', authenticateUser, aiUpload.single('file'), async (req, res) => {
   try {
     if (!process.env.PDFCO_API_KEY) {
       return res.status(500).json({ status: 'error', message: 'PDFCO_API_KEY not configured' });
@@ -672,6 +844,11 @@ app.post('/ai/pdfco/upload', authenticateUser, upload.single('file'), async (req
     if (!req.file) {
       return res.status(400).json({ status: 'error', message: 'No file uploaded' });
     }
+    console.log('🧾 PDF.co upload proxy received file:', {
+      name: req.file.originalname,
+      size: req.file.size,
+      mimetype: req.file.mimetype
+    });
     const form = new FormData();
     const blob = new Blob([req.file.buffer], { type: req.file.mimetype || 'application/pdf' });
     form.append('file', blob, req.file.originalname || 'upload.pdf');
@@ -681,6 +858,8 @@ app.post('/ai/pdfco/upload', authenticateUser, upload.single('file'), async (req
       body: form
     });
     const text = await resp.text();
+    console.log('🧾 PDF.co upload upstream status:', resp.status, resp.statusText);
+    console.log('🧾 PDF.co upload upstream body (first 500 chars):', text.slice(0, 500));
     res.status(resp.status).type('application/json').send(text);
   } catch (err) {
     console.error('PDF.co upload proxy error:', err);
@@ -732,5 +911,14 @@ async function startServer() {
     console.log(`   All data is now stored in Supabase - no more local files!`);
   });
 }
+
+// Global error handler to ensure JSON error responses
+app.use((err, req, res, next) => {
+  try {
+    console.error('💥 Global error handler:', err && (err.stack || err));
+  } catch {}
+  if (res.headersSent) return next(err);
+  res.status(500).json({ status: 'error', message: err?.message || 'Internal Server Error' });
+});
 
 startServer().catch(console.error);
