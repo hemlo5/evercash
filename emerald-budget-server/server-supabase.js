@@ -10,6 +10,7 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 // Ensure fetch/FormData/Blob available in Node runtime
 const { fetch, FormData, Blob } = require('undici');
+const pdfParse = require('pdf-parse');
 require('dotenv').config();
 
 // Import Supabase configuration
@@ -706,6 +707,20 @@ app.post('/ai/nanonets/extract', authenticateUser, aiUpload.single('file'), asyn
 
         // Fallback to PDF.co OCR text if Nanonets failed
         if (!resp.ok) {
+          // Local PDF text extraction as first fallback
+          try {
+            if ((req.file.mimetype && req.file.mimetype.includes('pdf')) || (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.pdf'))) {
+              console.log('🛟 Local fallback: extracting PDF text via pdf-parse');
+              const parsed = await pdfParse(Buffer.from(req.file.buffer));
+              const content = parsed.text || '';
+              if (content && content.trim().length) {
+                return res.status(200).json({ content });
+              }
+            }
+          } catch (lpErr) {
+            console.error('❌ Local pdf-parse fallback error:', lpErr);
+          }
+
           console.log('🛟 Falling back to PDF.co text extraction...');
           if (!process.env.PDFCO_API_KEY) {
             console.warn('⚠️ PDFCO_API_KEY not configured; cannot fallback');
@@ -739,8 +754,12 @@ app.post('/ai/nanonets/extract', authenticateUser, aiUpload.single('file'), asyn
               return res.status(502).json({ status: 'error', message: 'PDF.co upload: no url in response' });
             }
 
-            // 2) Convert to text via PDF.co
-            const convResp = await fetch('https://api.pdf.co/v1/pdf/convert/to/text', {
+            // 2) Convert to text via PDF.co (choose endpoint based on file type)
+            const isImage = (req.file.mimetype && req.file.mimetype.startsWith('image/')) || /\.(jpg|jpeg|png|webp|heic|heif)$/i.test(req.file.originalname || '');
+            const convertEndpoint = isImage
+              ? 'https://api.pdf.co/v1/image/convert/to/text'
+              : 'https://api.pdf.co/v1/pdf/convert/to/text';
+            const convResp = await fetch(convertEndpoint, {
               method: 'POST',
               headers: {
                 'x-api-key': process.env.PDFCO_API_KEY,
@@ -749,7 +768,7 @@ app.post('/ai/nanonets/extract', authenticateUser, aiUpload.single('file'), asyn
               body: JSON.stringify({ url: fileUrl, inline: true })
             });
             const convText = await convResp.text();
-            console.log('🧾 PDF.co convert-to-text status:', convResp.status, convResp.statusText);
+            console.log('🧾 PDF.co convert-to-text status:', convResp.status, convResp.statusText, 'endpoint:', convertEndpoint);
             console.log('🧾 PDF.co convert-to-text body (first 500 chars):', convText.slice(0, 500));
             if (!convResp.ok) {
               return res.status(502).json({ status: 'error', message: 'PDF.co convert-to-text failed', details: convText.slice(0, 500) });
@@ -785,8 +804,32 @@ app.post('/ai/nanonets/extract', authenticateUser, aiUpload.single('file'), asyn
   }
   } catch (err) {
     console.error('Nanonets proxy error:', err);
-    // Try PDF.co fallback on thrown errors
+    // Try local PDF fallback first on thrown errors
     try {
+      if (req.file) {
+        console.log('🧾 Catch block file context:', {
+          name: req.file.originalname,
+          size: req.file.size,
+          mimetype: req.file.mimetype
+        });
+      } else {
+        console.warn('⚠️ Catch block: req.file is missing');
+      }
+
+      if (req.file && ((req.file.mimetype && req.file.mimetype.includes('pdf')) || (req.file.originalname && req.file.originalname.toLowerCase().endsWith('.pdf')))) {
+        try {
+          console.log('🛟 Catch: local pdf-parse fallback');
+          const parsed = await pdfParse(Buffer.from(req.file.buffer));
+          const content = parsed.text || '';
+          if (content && content.trim().length) {
+            return res.status(200).json({ content });
+          }
+        } catch (lpErr) {
+          console.error('❌ Catch: local pdf-parse fallback error:', lpErr);
+        }
+      }
+
+      // Then try PDF.co fallback
       if (!process.env.PDFCO_API_KEY) {
         return res.status(500).json({ status: 'error', message: 'Failed to process with Nanonets; PDFCO_API_KEY missing for fallback' });
       }
