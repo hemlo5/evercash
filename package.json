@@ -52,7 +52,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^10.18.0",
     "input-otp": "^1.4.2",
-    "loot-core": "portal:./vendor/actual/packages/loot-core",
+    "loot-core": "file:vendor/actual/packages/loot-core",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
