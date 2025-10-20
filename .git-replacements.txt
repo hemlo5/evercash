@@ -1,0 +1,2 @@
+﻿regex:gsk_[A-Za-z0-9]+
+GROQ_REDACTED
