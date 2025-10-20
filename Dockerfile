@@ -24,8 +24,8 @@ ENV VITE_PUBLIC_APP_URL=${VITE_PUBLIC_APP_URL}
 COPY package.json yarn.lock ./
 
 # Install deps (immutable if lock present; fallback to normal install)
-RUN --mount=type=cache,target=/root/.yarn \
-    --mount=type=cache,target=/root/.cache/yarn \
+RUN --mount=type=cache,id=yarn-cache,target=/root/.yarn \
+    --mount=type=cache,id=yarn-cache2,target=/root/.cache/yarn \
     yarn install --immutable || yarn install
 
 # Copy the rest of the app and build
