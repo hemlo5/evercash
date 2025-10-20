@@ -173,7 +173,8 @@ const httpsRedirect = (req, res, next) => {
   if (req.path === '/health') {
     return next();
   }
-  if (process.env.NODE_ENV === 'production' && req.header('x-forwarded-proto') !== 'https') {
+  const xfProto = req.header('x-forwarded-proto');
+  if (process.env.NODE_ENV === 'production' && xfProto && xfProto !== 'https') {
     return res.redirect(`https://${req.header('host')}${req.url}`);
   }
   next();

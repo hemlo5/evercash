@@ -32,6 +32,14 @@ const PORT = process.env.PORT || 5006;
 // Allow forcing a specific user ID for local development to bind requests to an existing Supabase user
 const FORCE_USER_ID = process.env.DEV_STATIC_USER_ID || process.env.FORCE_USER_ID;
 
+app.set('trust proxy', true);
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+app.head('/health', (req, res) => {
+  res.status(200).end();
+});
+
 // Configure multer for file uploads
 const upload = multer({ 
   storage: multer.memoryStorage(),
