@@ -637,6 +637,90 @@ app.post('/import-transactions', authenticateUser, upload.single('file'), async 
   }
 });
 
+// AI Proxy: Nanonets extract
+app.post('/ai/nanonets/extract', authenticateUser, upload.single('file'), async (req, res) => {
+  try {
+    if (!process.env.NANONETS_API_KEY) {
+      return res.status(500).json({ status: 'error', message: 'NANONETS_API_KEY not configured' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ status: 'error', message: 'No file uploaded' });
+    }
+    const form = new FormData();
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype || 'application/octet-stream' });
+    form.append('file', blob, req.file.originalname || 'upload');
+    form.append('output_type', req.body?.output_type || 'markdown');
+    const resp = await fetch('https://extraction-api.nanonets.com/extract', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.NANONETS_API_KEY}` },
+      body: form
+    });
+    const text = await resp.text();
+    res.status(resp.status).type('application/json').send(text);
+  } catch (err) {
+    console.error('Nanonets proxy error:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to process with Nanonets' });
+  }
+});
+
+// AI Proxy: PDF.co upload
+app.post('/ai/pdfco/upload', authenticateUser, upload.single('file'), async (req, res) => {
+  try {
+    if (!process.env.PDFCO_API_KEY) {
+      return res.status(500).json({ status: 'error', message: 'PDFCO_API_KEY not configured' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ status: 'error', message: 'No file uploaded' });
+    }
+    const form = new FormData();
+    const blob = new Blob([req.file.buffer], { type: req.file.mimetype || 'application/pdf' });
+    form.append('file', blob, req.file.originalname || 'upload.pdf');
+    const resp = await fetch('https://api.pdf.co/v1/file/upload', {
+      method: 'POST',
+      headers: { 'x-api-key': process.env.PDFCO_API_KEY },
+      body: form
+    });
+    const text = await resp.text();
+    res.status(resp.status).type('application/json').send(text);
+  } catch (err) {
+    console.error('PDF.co upload proxy error:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to upload to PDF.co' });
+  }
+});
+
+// AI Proxy: PDF.co split
+app.post('/ai/pdfco/split', authenticateUser, async (req, res) => {
+  try {
+    if (!process.env.PDFCO_API_KEY) {
+      return res.status(500).json({ status: 'error', message: 'PDFCO_API_KEY not configured' });
+    }
+    const { url, pages } = req.body || {};
+    if (!url || !pages) {
+      return res.status(400).json({ status: 'error', message: 'url and pages are required' });
+    }
+    const payload = {
+      url,
+      inline: false,
+      pages,
+      name: 'split.pdf',
+      async: false
+    };
+    const resp = await fetch('https://api.pdf.co/v1/pdf/split', {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.PDFCO_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    const text = await resp.text();
+    res.status(resp.status).type('application/json').send(text);
+  } catch (err) {
+    console.error('PDF.co split proxy error:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to split via PDF.co' });
+  }
+});
+
 // Start server
 async function startServer() {
   await initializeServer();

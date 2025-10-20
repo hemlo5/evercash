@@ -1,6 +1,4 @@
-const PDFCO_API_KEY = 'vaishumaniket@gmail.com_LDxGg4x0qyUSjlGgDI4Egzax56gO6334Pd4YQ6MRNrceUTmZ92d4ftmaVvdxbAh6';
-
-const PDFCO_BASE_URL = 'https://api.pdf.co/v1';
+const API_BASE = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5006');
 
 async function getPdfPageCount(file: File): Promise<number> {
   try {
@@ -21,11 +19,12 @@ async function uploadToPdfco(file: File): Promise<string> {
   const form = new FormData();
   form.append('file', file);
 
-  const res = await fetch(`${PDFCO_BASE_URL}/file/upload`, {
+  const token = localStorage.getItem('actual-token');
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/ai/pdfco/upload`, {
     method: 'POST',
-    headers: {
-      'x-api-key': PDFCO_API_KEY,
-    },
+    headers,
     body: form,
   });
 
@@ -42,18 +41,15 @@ async function uploadToPdfco(file: File): Promise<string> {
 }
 
 async function splitByRanges(sourceUrl: string, pagesPattern: string): Promise<string[]> {
-  const res = await fetch(`${PDFCO_BASE_URL}/pdf/split`, {
+  const token = localStorage.getItem('actual-token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/ai/pdfco/split`, {
     method: 'POST',
-    headers: {
-      'x-api-key': PDFCO_API_KEY,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       url: sourceUrl,
-      inline: false,
       pages: pagesPattern,
-      name: 'split.pdf',
-      async: false,
     }),
   });
   if (!res.ok) {

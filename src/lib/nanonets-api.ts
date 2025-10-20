@@ -1,6 +1,5 @@
-// Nanonets API Integration for PDF/CSV Import
-const NANONETS_API_KEY = '0ffdde3f-a6a8-11f0-87de-76a9a004f0b1';
-const NANONETS_BASE_URL = 'https://extraction-api.nanonets.com';
+// Nanonets API Integration for PDF/CSV Import (proxied via backend to avoid CORS)
+const API_BASE = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5006');
 
 export interface NanonetsResponse {
   message?: string;
@@ -28,12 +27,10 @@ export interface ParsedTransaction {
 }
 
 export class NanonetsAPI {
-  private apiKey: string;
   private baseUrl: string;
 
   constructor() {
-    this.apiKey = NANONETS_API_KEY;
-    this.baseUrl = NANONETS_BASE_URL;
+    this.baseUrl = API_BASE;
   }
 
   /**
@@ -48,15 +45,16 @@ export class NanonetsAPI {
       fileName: file.name,
       fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
       fileType: file.type,
-      apiEndpoint: `${this.baseUrl}/extract`
+      apiEndpoint: `${this.baseUrl}/ai/nanonets/extract`
     });
 
     try {
-      const response = await fetch(`${this.baseUrl}/extract`, {
+      const token = localStorage.getItem('actual-token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const response = await fetch(`${this.baseUrl}/ai/nanonets/extract`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
+        headers,
         body: formData,
       });
 
