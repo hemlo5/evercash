@@ -16,6 +16,7 @@ import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 import { useUser } from "@/contexts/UserContext";
 import { generateAIInsights, type AIInsight } from "@/lib/ai-insights";
 import { CurrencySelector } from "@/components/CurrencySelector";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { toast } from "sonner";
 import type { Account as ApiAccount, Transaction as ApiTransaction } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
@@ -237,6 +238,7 @@ export default function Dashboard() {
             className=""
             showIcon={true}
           />
+          <ThemeToggle />
           <Button
             onClick={() => navigate('/import')}
             className={`font-bold transition-all text-sm md:text-base px-3 md:px-4 py-2 ${
