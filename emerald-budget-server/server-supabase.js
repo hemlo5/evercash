@@ -9,7 +9,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 // Ensure fetch/FormData/Blob available in Node runtime
-const { fetch, FormData, Blob } = require('undici');
+const { fetch, FormData, File } = require('undici');
+const { Blob } = require('buffer');
 const pdfParse = require('pdf-parse');
 require('dotenv').config();
 
@@ -35,7 +36,8 @@ const PORT = process.env.PORT || 5006;
 // Allow forcing a specific user ID for local development to bind requests to an existing Supabase user
 const FORCE_USER_ID = process.env.DEV_STATIC_USER_ID || process.env.FORCE_USER_ID;
 
-app.set('trust proxy', true);
+// Behind Railway proxy, trust 1 hop (safer than boolean true)
+app.set('trust proxy', 1);
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
