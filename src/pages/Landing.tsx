@@ -60,14 +60,14 @@ export default function Landing() {
 
       {/* Main card */}
       <div className="relative z-10 w-full max-w-md mx-4 animate-fade-in-up">
-        <div className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 rounded-3xl shadow-2xl border border-emerald-200/50 dark:border-emerald-800/50 p-8 space-y-8">
+        <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border-2 border-emerald-500 p-8 space-y-8">
           {/* Logo & Title */}
           <div className="text-center space-y-4">
             <div>
-              <h1 className="text-4xl font-extrabold bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-extrabold !text-emerald-600">
                 EVERCASH
               </h1>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+              <p className="text-sm !text-black dark:text-gray-300 mt-2 font-bold">
                 Smart budget management with AI-powered insights
               </p>
             </div>
@@ -75,10 +75,10 @@ export default function Landing() {
 
           {/* Onboarding text */}
           <div className="text-center px-2">
-            <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
+            <p className="!text-black dark:text-gray-200 leading-relaxed font-bold text-base">
               Start by signing in to your account.
             </p>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-sm !text-black dark:text-gray-300 mt-2 font-semibold">
               New here? Sign up and we'll guide you through a quick onboarding to set up your budget and first goal.
             </p>
           </div>
@@ -88,12 +88,12 @@ export default function Landing() {
             <Button
               onClick={handleSignIn}
               disabled={loading}
-              className="w-full h-14 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500 transition-all duration-300 shadow-md hover:shadow-lg group"
+              className="w-full h-14 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 !text-black dark:text-white border-2 border-gray-800 dark:border-gray-600 hover:border-emerald-500 dark:hover:border-gray-500 transition-all duration-300 shadow-md hover:shadow-lg group"
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin mr-3 text-gray-700 dark:text-gray-300" />
-                  <span className="font-semibold">Signing in...</span>
+                  <Loader2 className="h-5 w-5 animate-spin mr-3 !text-black dark:text-gray-300" />
+                  <span className="font-bold !text-black dark:text-white">Signing in...</span>
                 </>
               ) : (
                 <>
@@ -103,7 +103,7 @@ export default function Landing() {
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
-                  <span className="font-semibold">Sign in/up with Google</span>
+                  <span className="font-bold !text-black dark:text-white">Sign in/up with Google</span>
                 </>
               )}
             </Button>
@@ -117,7 +117,7 @@ export default function Landing() {
               </svg>
               <span className="text-xs font-medium">Your data is encrypted and secure</span>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
+            <p className="text-xs !text-gray-800 dark:text-gray-400 font-semibold">
               Powered by Supabase • Terms • Privacy
             </p>
           </div>
