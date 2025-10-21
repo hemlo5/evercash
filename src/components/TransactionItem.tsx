@@ -27,12 +27,12 @@ export function TransactionItem({ merchant, category, amount, date }: Transactio
         <Icon className="w-4 h-4 md:w-5 md:h-5 text-accent" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm md:text-base truncate max-w-full text-foreground" title={merchant}>{merchant}</p>
+        <p className="font-semibold text-sm md:text-base truncate max-w-full text-black dark:text-white" title={merchant}>{merchant}</p>
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
-          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground truncate max-w-fit">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 truncate max-w-fit">
             {category}
           </span>
-          <span className="text-xs text-muted-foreground">{date}</span>
+          <span className="text-xs text-gray-700 dark:text-gray-300">{date}</span>
         </div>
       </div>
       <div className="flex flex-col items-end justify-center flex-shrink-0">

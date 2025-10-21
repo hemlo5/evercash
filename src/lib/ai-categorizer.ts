@@ -44,7 +44,7 @@ class AICategorizer {
   private merchantHintCache = new Map<string, string[]>();
   private hfModelId: string = 'kuro-08/bert-transaction-categorization';
   private hfToken: string | null = null;
-  private provider: 'auto' | 'huggingface' | 'groq' | 'fina' = 'auto';
+  private provider: 'auto' | 'huggingface' | 'groq' | 'fina' = 'huggingface';
   
   constructor() {
     // Try to get API key from environment or localStorage
@@ -54,12 +54,9 @@ class AICategorizer {
                   null;
     const envHf = typeof process !== 'undefined' ? (process.env?.REACT_APP_HF_TOKEN as string | undefined) : undefined;
     this.hfToken = envHf || (typeof localStorage !== 'undefined' ? localStorage.getItem('hf_api_token') : null);
-    try {
-      const p = typeof localStorage !== 'undefined' ? localStorage.getItem('ai_provider') : null;
-      if (p === 'huggingface' || p === 'groq' || p === 'fina' || p === 'auto') {
-        this.provider = p;
-      }
-    } catch {}
+    // Force provider to Hugging Face for all users
+    this.provider = 'huggingface';
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem('ai_provider', 'huggingface'); } catch {}
   }
 
   setApiKey(apiKey: string) {
@@ -69,9 +66,10 @@ class AICategorizer {
     }
   }
 
-  setProvider(p: 'auto' | 'huggingface' | 'groq' | 'fina') {
-    this.provider = p;
-    try { if (typeof localStorage !== 'undefined') localStorage.setItem('ai_provider', p); } catch {}
+  setProvider(_: 'auto' | 'huggingface' | 'groq' | 'fina') {
+    // Provider selection is locked to Hugging Face
+    this.provider = 'huggingface';
+    try { if (typeof localStorage !== 'undefined') localStorage.setItem('ai_provider', 'huggingface'); } catch {}
   }
 
   async categorizeTransaction(transaction: TransactionData): Promise<CategoryResult> {

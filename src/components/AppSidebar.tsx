@@ -44,13 +44,8 @@ export function AppSidebar({ className }: AppSidebarProps) {
     <Sidebar className={`border-r border-border shadow-sm bg-sidebar ${className || ''}`}>
       <SidebarContent className="bg-sidebar">
         <div className="p-6 pb-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(0,255,0,0.4)] text-black">
-              EC
-            </div>
-            <div>
-              <h2 className="font-bold text-lg bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">EVERCASH</h2>
-            </div>
+          <div className="flex items-center justify-center mb-2">
+            <h2 className="font-bold text-xl bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">EVERCASH</h2>
           </div>
         </div>
 

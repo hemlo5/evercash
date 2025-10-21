@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Transactions() {
   const { api } = useApi();
@@ -409,14 +410,7 @@ export default function Transactions() {
             <Trash2 className="w-4 h-4 mr-2" />
             Delete All ({transactions.length})
           </Button>
-          <Button
-            onClick={() => navigate('/import')}
-            variant="outline"
-            className="border-accent/30 hover:bg-accent/10 text-sm px-4 py-2"
-          >
-            <Upload className="w-5 h-5 mr-2" />
-            Import Transactions
-          </Button>
+          {/* Import removed per request */}
           <Button
             onClick={() => {
               setFormData({
@@ -439,7 +433,7 @@ export default function Transactions() {
 
         {/* Mobile: Two rows layout */}
         <div className="md:hidden space-y-3">
-          {/* First row: Recat, Delete, Schedule */}
+          {/* First row: Recat, Delete */}
           <div className="flex gap-2">
             <Button
               onClick={async () => {
@@ -509,14 +503,7 @@ export default function Transactions() {
               <Trash2 className="w-3 h-3 mr-1" />
               Del ({transactions.length})
             </Button>
-            <Button
-              onClick={() => navigate('/import')}
-              variant="outline"
-              className="border-accent/30 hover:bg-accent/10 text-xs px-2 py-2 flex-1"
-            >
-              <Upload className="w-3 h-3 mr-1" />
-              Import
-            </Button>
+            {/* Import removed per request */}
           </div>
           
           {/* Second row: Add Transaction (full width, bigger) */}
@@ -597,7 +584,7 @@ export default function Transactions() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground dark:text-foreground">All Transactions</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300">All Transactions</p>
               <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{transactions.length}</p>
             </div>
             <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
@@ -618,27 +605,30 @@ export default function Transactions() {
             aria-label="Search transactions"
           />
         </div>
-        <Button
-          variant="outline"
-          className="h-10 md:h-12 border-accent/30 hover:bg-accent/10 px-3 md:px-4 text-xs md:text-sm"
-        >
-          <Filter className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
-          <span className="hidden sm:inline">Filter</span>
-          <span className="sm:hidden">Filter</span>
-        </Button>
-        <Button
-          onClick={() => setBankSyncOpen(true)}
-          className="bg-gradient-emerald hover:opacity-90 transition-opacity h-10 md:h-12 shadow-[0_0_20px_rgba(16,185,129,0.3)] px-3 md:px-4 text-xs md:text-sm"
-        >
-          <Upload className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
-          <span className="hidden sm:inline">Import / Sync</span>
-          <span className="sm:hidden">Import</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              className="h-10 md:h-12 border-accent/30 hover:bg-accent/10 px-3 md:px-4 text-xs md:text-sm"
+            >
+              <Filter className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Filter</span>
+              <span className="sm:hidden">Filter</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setTransactionFilter('all')}>All</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTransactionFilter('income')}>Income</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTransactionFilter('expense')}>Expense</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <div className="rounded-2xl p-6 border border-border bg-card dark:bg-black text-foreground shadow-lg">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">
+      <div className="rounded-2xl border border-border bg-card dark:bg-black shadow-lg overflow-hidden flex flex-col h-[calc(100vh-28rem)] md:h-[800px]">
+        <div className="flex items-center justify-between p-6 border-b border-border flex-shrink-0">
+          <h2 className="text-xl font-bold text-black dark:text-white">
             {transactionFilter === 'all' ? 'All Transactions' : 
              transactionFilter === 'income' ? 'Income Transactions' : 
              'Expense Transactions'}
@@ -655,7 +645,7 @@ export default function Transactions() {
             Export CSV
           </Button>
         </div>
-        <div className="space-y-2">
+        <div className="flex-1 overflow-y-auto p-6 space-y-2">
           {filteredTransactions.slice(0, 100).map((transaction) => (
             <div 
               key={transaction.id}
