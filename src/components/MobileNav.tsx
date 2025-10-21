@@ -135,6 +135,7 @@ export function MobileNavButton() {
         variant="ghost"
         size="sm"
         onClick={() => setIsOpen(true)}
+        data-tutorial="mobile-menu-button"
         className="md:hidden p-2 rounded-lg border border-border/70 text-gray-800 dark:text-white hover:bg-accent/10 bg-background/80"
       >
         <Menu className="w-5 h-5" />
