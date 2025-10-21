@@ -588,10 +588,10 @@ export default function BudgetsTest() {
                   const budgetPerformance = budgeted > 0 ? ((budgeted - actualSpent) / budgeted) * 100 : 0;
                   
                   return (
-                    <div key={category.id} className="p-4 rounded-lg border border-border/50 hover:border-accent/30 transition-colors">
-                      <div className="flex items-center justify-between mb-3">
+                    <div key={category.id} className="p-3 sm:p-4 rounded-lg border border-border/50 hover:border-accent/30 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg ${
+                          <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shadow-lg ${
                             budgetPerformance >= 0 ? 
                             'bg-gradient-to-br from-green-500/20 to-green-400/30 shadow-[0_0_10px_rgba(0,255,0,0.2)]' :
                             'bg-gradient-to-br from-red-500/20 to-red-400/30 shadow-[0_0_10px_rgba(255,0,0,0.2)]'
@@ -600,7 +600,7 @@ export default function BudgetsTest() {
                           </div>
                           <div>
                             <h4 className="font-medium">{category.name}</h4>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                               Spent: {formatAmount(actualSpent)} / Budget: {formatAmount(budgeted)}
                             </p>
                             <p className={`text-xs font-medium ${budgetPerformance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -611,12 +611,12 @@ export default function BudgetsTest() {
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto flex-wrap">
                           <div className="text-right">
-                            <div className={`text-sm font-medium ${budgetPerformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            <div className={`text-xs sm:text-sm font-medium ${budgetPerformance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                               {budgetPerformance >= 0 ? '✓ On Track' : '⚠ Over Budget'}
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-[10px] sm:text-xs text-muted-foreground">
                               {Math.abs(budgetPerformance).toFixed(1)}% {budgetPerformance >= 0 ? 'saved' : 'over'}
                             </div>
                           </div>
@@ -649,7 +649,7 @@ export default function BudgetsTest() {
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex gap-1">
+                            <div className="hidden sm:flex gap-1">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -689,6 +689,46 @@ export default function BudgetsTest() {
                             </div>
                           )}
                         </div>
+                        {editingCategory !== category.id && (
+                          <div className="flex sm:hidden gap-1 justify-end">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleSelectTransactions(category.id, category.name)}
+                              className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950"
+                              title="Allocate transactions to this budget category"
+                            >
+                              <List className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleViewAllocated(category.id, category.name)}
+                              className="text-green-500 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
+                              title="View and manage allocated transactions"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCategory(category.id);
+                                setEditAmount(budgeted.toString());
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteBudget(category.id, category.name)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <div className="w-full bg-muted rounded-full h-2">
                         <div 

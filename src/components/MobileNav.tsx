@@ -11,6 +11,8 @@ import {
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { CurrencySelector } from "@/components/CurrencySelector";
+import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 
 // Secondary navigation items - main pages are handled by bottom navigation
 const navItems = [
@@ -27,6 +29,8 @@ interface MobileNavProps {
 }
 
 export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
+  const { currentCurrency, setCurrency } = useSimpleCurrency();
+  
   return (
     <>
       {/* Backdrop */}
@@ -58,6 +62,21 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
             <Button variant="ghost" size="sm" onClick={onClose} className="text-foreground hover:bg-accent/10">
               <X className="w-5 h-5" />
             </Button>
+          </div>
+        </div>
+
+        {/* Currency Selector Section */}
+        <div className="p-4 border-b border-border">
+          <p className="px-3 text-muted-foreground uppercase text-xs tracking-wider font-semibold mb-3">
+            Currency
+          </p>
+          <div className="px-3">
+            <CurrencySelector
+              value={currentCurrency}
+              onChange={setCurrency}
+              showIcon={true}
+              className="w-full"
+            />
           </div>
         </div>
 

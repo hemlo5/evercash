@@ -38,7 +38,7 @@ export function CurrencySelector({
       )}
       {showIcon && <Globe className="w-4 h-4 text-muted-foreground" />}
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-[128px] sm:w-[160px] md:w-[180px]">
           <SelectValue placeholder="Select currency" />
         </SelectTrigger>
         <SelectContent>

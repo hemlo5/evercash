@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, DollarSign, PiggyBank, Plus, Zap, Target, Loader2, Globe, Link2, Upload } from "lucide-react";
+import { TrendingUp, DollarSign, PiggyBank, Plus, Zap, Target, Loader2, Link2, Upload } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { NetWorthCircle } from "@/components/NetWorthCircle";
 import { TransactionItem } from "@/components/TransactionItem";
-import { AIInsightBadge } from "@/components/AIInsightBadge";
-import { AIReportBanner } from "@/components/AIReportBanner";
+import { DashboardSlides } from "@/components/DashboardSlides";
 import { DashboardWidget } from "@/components/DashboardWidget";
 import { QuickAddTransaction } from "@/components/QuickAddTransaction";
 import { BankSyncModal } from "@/components/BankSyncModal";
@@ -14,7 +13,7 @@ import { useApi } from "@/contexts/HybridApiContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 import { useUser } from "@/contexts/UserContext";
-import { generateAIInsights, type AIInsight } from "@/lib/ai-insights";
+ 
 // Removed CurrencySelector and ThemeToggle from dashboard header
 import { toast } from "sonner";
 import type { Account as ApiAccount, Transaction as ApiTransaction } from "@/lib/api";
@@ -45,7 +44,7 @@ export default function Dashboard() {
   const [budgetData, setBudgetData] = useState<BudgetData | null>(null);
   const [goals, setGoals] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [aiInsights, setAiInsights] = useState<AIInsight[]>([]);
+  
   const [surplusDeficit, setSurplusDeficit] = useState(0);
   const { user } = useUser();
 
@@ -125,12 +124,7 @@ export default function Dashboard() {
           balance: totalIncome - totalExpenses
         });
 
-        // Generate AI insights based on transaction data
-        const insights = generateAIInsights(allTransactions, {
-          income: totalIncome,
-          expense: totalExpenses,
-        });
-        setAiInsights(insights);
+        
 
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -279,22 +273,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* AI Insights Section */}
-      <div className="flex flex-wrap gap-2 md:gap-3 items-center animate-fade-in-up">
-        <AIReportBanner 
-          transactions={transactions} 
-          monthlyIncome={monthlyIncome} 
-          monthlyExpenses={monthlyExpenses} 
-        />
-        {aiInsights.slice(0, 3).map((insight, index) => (
-          <AIInsightBadge
-            key={index}
-            type={insight.type}
-            message={insight.message}
-            detail={insight.detail}
-          />
-        ))}
-      </div>
+      {/* Dashboard slides: MTD Pacing, Spikes, Runway */}
+      <DashboardSlides transactions={transactions} accounts={accounts} />
 
       {/* Mobile Layout: Income + Expenses side by side, Savings Rate below */}
       <div className="md:hidden space-y-4">
