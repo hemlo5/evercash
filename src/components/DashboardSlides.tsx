@@ -1,4 +1,4 @@
-import React, { useMemo, useRef } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 import type { Transaction as ApiTransaction } from "@/lib/api";
@@ -26,12 +26,30 @@ export function DashboardSlides({ transactions, accounts }: DashboardSlidesProps
   const { theme } = useTheme();
   const { formatAmount } = useSimpleCurrency();
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
   const scrollSlide = (dir: number) => {
     const scroller = scrollerRef.current;
     if (!scroller) return;
     const w = scroller.clientWidth;
     scroller.scrollTo({ left: scroller.scrollLeft + dir * w, behavior: "smooth" });
   };
+  
+  // Track scroll position to update dots
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    
+    const handleScroll = () => {
+      const w = scroller.clientWidth;
+      const scrollLeft = scroller.scrollLeft;
+      const slideIndex = Math.round(scrollLeft / w);
+      setCurrentSlide(slideIndex);
+    };
+    
+    scroller.addEventListener('scroll', handleScroll);
+    return () => scroller.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const {
     mtdSpend,
@@ -291,9 +309,14 @@ export function DashboardSlides({ transactions, accounts }: DashboardSlidesProps
       </div>
       {/* Simple dots */}
       <div className="flex items-center justify-center gap-1 pb-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500/70" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+        {[0, 1, 2].map((index) => (
+          <span
+            key={index}
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+              currentSlide === index ? 'bg-emerald-500/70 w-2 h-2' : 'bg-muted-foreground/40'
+            }`}
+          />
+        ))}
       </div>
     </div>
   );

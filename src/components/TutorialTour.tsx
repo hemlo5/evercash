@@ -203,7 +203,7 @@ export function TutorialTour() {
         }`}
       >
         <HelpCircle className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
-        <span className="hidden sm:inline">Tutorial</span>
+        <span>Tutorial</span>
       </Button>
 
       <Joyride

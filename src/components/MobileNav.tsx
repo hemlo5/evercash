@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CurrencySelector } from "@/components/CurrencySelector";
 import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUser } from "@/contexts/UserContext";
 
 // Secondary navigation items - main pages are handled by bottom navigation
 const navItems = [
@@ -30,6 +33,23 @@ interface MobileNavProps {
 
 export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
   const { currentCurrency, setCurrency } = useSimpleCurrency();
+  const { theme } = useTheme();
+  const { user: authUser } = useAuth();
+  const { user } = useUser();
+  
+  // Get user initials
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+  
+  // Priority: UserContext (Settings) → AuthContext → Email → Fallback
+  const userName = user?.name || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'User';
+  const userInitials = getInitials(userName);
   
   return (
     <>
@@ -49,13 +69,18 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center font-bold text-lg shadow-[0_0_15px_rgba(0,255,0,0.4)] text-black">
-              EC
-            </div>
-            <div>
-              <h2 className="font-bold text-lg text-foreground dark:bg-gradient-to-r dark:from-emerald-400 dark:to-emerald-600 dark:bg-clip-text dark:text-transparent">EVERCASH</h2>
-            </div>
+          <div className="flex items-center justify-center">
+            <h2 
+              className="font-bold text-xl"
+              style={theme === 'dark' ? {
+                color: 'white'
+              } : {
+                background: 'linear-gradient(to right, #059669, #34d399)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >EVERCASH</h2>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -70,12 +95,12 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
           <p className="px-3 text-muted-foreground uppercase text-xs tracking-wider font-semibold mb-3">
             Currency
           </p>
-          <div className="px-3">
+          <div className="px-3 text-emerald-600 dark:text-emerald-400">
             <CurrencySelector
               value={currentCurrency}
               onChange={setCurrency}
               showIcon={true}
-              className="w-full"
+              className="w-full [&_button]:!text-emerald-600 dark:[&_button]:!text-emerald-400 [&_button]:!border-emerald-500/50"
             />
           </div>
         </div>
@@ -112,10 +137,10 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavProps) {
           <div className="bg-gradient-to-br from-green-500/10 to-green-400/20 border border-green-500/30 p-4 rounded-xl shadow-[0_0_15px_rgba(0,255,0,0.2)]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center shadow-[0_0_10px_rgba(0,255,0,0.4)]">
-                <span className="text-sm font-bold text-black">JD</span>
+                <span className="text-sm font-bold text-black">{userInitials}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate text-emerald-600 dark:text-white">John Doe</p>
+                <p className="font-semibold text-sm truncate text-emerald-600 dark:text-white">{userName}</p>
                 <p className="text-xs text-green-400 font-medium">Premium</p>
               </div>
             </div>

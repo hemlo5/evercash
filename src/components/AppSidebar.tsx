@@ -21,6 +21,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUser } from "@/contexts/UserContext";
 
 const navItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, dataTutorial: "dashboard-nav" },
@@ -40,12 +42,37 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ className }: AppSidebarProps) {
+  const { user: authUser } = useAuth();
+  const { user } = useUser();
+  
+  // Get user initials
+  const getInitials = (name?: string) => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+  
+  // Priority: UserContext (Settings) → AuthContext → Email → Fallback
+  const userName = user?.name || authUser?.user_metadata?.full_name || authUser?.email?.split('@')[0] || 'User';
+  const userInitials = getInitials(userName);
+  
   return (
     <Sidebar className={`border-r border-border shadow-sm bg-sidebar ${className || ''}`}>
       <SidebarContent className="bg-sidebar">
-        <div className="p-6 pb-4">
-          <div className="flex items-center justify-center mb-2">
-            <h2 className="font-bold text-xl bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">EVERCASH</h2>
+        <div className="p-4 pt-6">
+          <div className="bg-gradient-to-br from-green-500/10 to-green-400/20 border border-green-500/30 p-4 rounded-xl shadow-[0_0_15px_rgba(0,255,0,0.2)]">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center shadow-[0_0_10px_rgba(0,255,0,0.4)]">
+                <span className="text-sm font-bold text-black">{userInitials}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm truncate text-emerald-600 dark:text-white">{userName}</p>
+                <p className="text-xs text-green-400 font-medium">Premium</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -77,20 +104,6 @@ export function AppSidebar({ className }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        <div className="mt-auto p-4">
-          <div className="bg-gradient-to-br from-green-500/10 to-green-400/20 border border-green-500/30 p-4 rounded-xl shadow-[0_0_15px_rgba(0,255,0,0.2)]">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-green-500 to-green-400 flex items-center justify-center shadow-[0_0_10px_rgba(0,255,0,0.4)]">
-                <span className="text-sm font-bold text-black">JD</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm truncate text-emerald-600 dark:text-white">John Doe</p>
-                <p className="text-xs text-green-400 font-medium">Premium</p>
-              </div>
-            </div>
-          </div>
-        </div>
       </SidebarContent>
     </Sidebar>
   );

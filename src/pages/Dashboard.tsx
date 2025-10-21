@@ -227,11 +227,17 @@ export default function Dashboard() {
       }`}>
         {/* Mobile: brand + controls (same row) */}
         <div className="md:hidden flex items-center justify-between">
-          <h1 className={`font-extrabold tracking-tight text-xl sm:text-2xl flex-shrink-0 ${
-            theme === 'dark' 
-              ? 'bg-gradient-to-r from-green-400 to-green-300 bg-clip-text text-transparent'
-              : 'bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent'
-          }`}>EVERCASH</h1>
+          <h1 
+            className="font-extrabold tracking-tight text-xl sm:text-2xl flex-shrink-0"
+            style={theme === 'dark' ? {
+              color: 'white'
+            } : {
+              background: 'linear-gradient(to right, #059669, #34d399)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >EVERCASH</h1>
           <div className="flex items-center gap-2 flex-shrink-0">
             <TutorialTour />
             <Button
@@ -239,12 +245,12 @@ export default function Dashboard() {
               data-tutorial="import-button"
               className={`font-semibold text-xs px-2 py-2 whitespace-nowrap flex-shrink-0 ${
                 theme === 'dark'
-                  ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'
-                  : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+                  ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 !text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'
+                  : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 !text-white shadow-[0_0_10px_rgba(16,185,129,0.25)]'
               }`}
             >
-              <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              Import
+              <Upload className={`w-3 h-3 sm:w-4 sm:h-4 mr-1 ${theme === 'dark' ? '!text-black' : '!text-white'}`} />
+              <span className={theme === 'dark' ? '!text-black' : '!text-white'}>Import</span>
             </Button>
             <div className="md:hidden">
               <MobileNavButton />
@@ -253,7 +259,17 @@ export default function Dashboard() {
         </div>
         {/* Desktop: brand left, controls right */}
         <div className="hidden md:flex items-center justify-between">
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-400 dark:from-green-400 dark:to-green-300 bg-clip-text text-transparent">EVERCASH</h1>
+          <h1 
+            className="text-3xl md:text-4xl font-extrabold tracking-tight"
+            style={theme === 'dark' ? {
+              color: 'white'
+            } : {
+              background: 'linear-gradient(to right, #059669, #34d399)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >EVERCASH</h1>
           <div className="flex items-center gap-3">
             <CurrencySelector
               value={currentCurrency}
@@ -266,13 +282,13 @@ export default function Dashboard() {
               data-tutorial="import-button"
               className={`font-semibold text-sm md:text-base px-3 md:px-4 py-2 ${
                 theme === 'dark'
-                  ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'
-                  : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+                  ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 !text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'
+                  : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 !text-white shadow-[0_0_10px_rgba(16,185,129,0.25)]'
               }`}
             >
-              <Upload className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Import Transactions</span>
-              <span className="sm:hidden">Import</span>
+              <Upload className={`w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2 ${theme === 'dark' ? '!text-black' : '!text-white'}`} />
+              <span className={`hidden sm:inline ${theme === 'dark' ? '!text-black' : '!text-white'}`}>Import Transactions</span>
+              <span className={`sm:hidden ${theme === 'dark' ? '!text-black' : '!text-white'}`}>Import</span>
             </Button>
           </div>
         </div>

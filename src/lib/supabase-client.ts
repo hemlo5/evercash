@@ -38,10 +38,15 @@ export interface ExpenseCategory {
 
 // Auth helpers
 export const signInWithGoogle = async () => {
+  // Use current origin (localhost in dev, production in prod) for redirect
+  const redirectUrl = window.location.origin.includes('localhost') 
+    ? window.location.origin 
+    : (import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin);
+  
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${import.meta.env.VITE_PUBLIC_APP_URL || window.location.origin}/auth/callback`,
+      redirectTo: `${redirectUrl}/auth/callback`,
       queryParams: {
         prompt: 'select_account',
       },
