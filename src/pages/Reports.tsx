@@ -129,7 +129,24 @@ export default function Reports() {
     
   const netIncome = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0;
-  const netWorth = accounts.reduce((sum, account) => sum + (account.balance || 0), 0); // Already in dollars
+  // Net worth: prefer current account balances (already dollars from API). Exclude closed accounts.
+  const hasNumericBalances = Array.isArray(accounts) && accounts.every(a => typeof a.balance === 'number' && !isNaN(a.balance as number));
+  const netWorthFromBalances = (accounts || [])
+    .filter(acc => !acc.closed)
+    .reduce((sum, acc) => sum + (typeof acc.balance === 'number' ? acc.balance : 0), 0);
+  // Fallback: derive balances from transactions if balances are missing
+  const balancesFromTxMap = (() => {
+    const map = new Map<string, number>();
+    (transactions || []).forEach(tx => {
+      const prev = map.get(tx.account) || 0;
+      map.set(tx.account, prev + (tx.amount || 0));
+    });
+    return map;
+  })();
+  const netWorthFromTx = (accounts || [])
+    .filter(acc => !acc.closed)
+    .reduce((sum, acc) => sum + (balancesFromTxMap.get(acc.id) || 0), 0);
+  const netWorth = hasNumericBalances ? netWorthFromBalances : netWorthFromTx;
   const rangeLabel = `${windowStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${windowEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
   
   // Helper function to get category name
@@ -470,7 +487,17 @@ export default function Reports() {
           <div className="glass-card p-4 md:p-8 rounded-2xl">
             <h2 className="text-xl md:text-2xl font-bold mb-4">Net Worth</h2>
             <div className="text-2xl md:text-4xl font-bold text-emerald-600">{formatAmount(netWorth)}</div>
-            <p className="text-sm text-muted-foreground mt-2">Total across all accounts</p>
+            <p className="text-sm text-muted-foreground mt-2">Total across all open accounts</p>
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {(accounts || []).filter(a => !a.closed).map(acc => (
+                <div key={acc.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                  <span className="text-sm truncate mr-3" title={acc.name}>{acc.name}</span>
+                  <span className={`text-sm font-semibold ${ (acc.balance || 0) < 0 ? 'text-red-600' : 'text-emerald-600' }`}>
+                    {formatAmount(typeof acc.balance === 'number' ? acc.balance : (balancesFromTxMap.get(acc.id) || 0))}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </TabsContent>
 
