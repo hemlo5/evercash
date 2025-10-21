@@ -1,5 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface NetWorthCircleProps {
   netWorth: number;
@@ -17,20 +18,23 @@ interface NetWorthCircleEditableProps extends NetWorthCircleProps {
 
 export function NetWorthCircle({ netWorth, target, surplusDeficit, editingTarget, setEditingTarget, targetInput, setTargetInput, setNetWorthTarget }: NetWorthCircleEditableProps) {
   const { formatAmount } = useSimpleCurrency();
+  const { theme } = useTheme();
   const percentage = Math.min((netWorth / target) * 100, 100);
   const data = [
     { name: "Current", value: percentage },
     { name: "Remaining", value: 100 - percentage },
   ];
 
-  const COLORS = ["hsl(158 64% 20%)", "hsl(220 16% 22%)"];
+  const COLORS = theme === 'dark' 
+    ? ["#22c55e", "rgba(255,255,255,0.06)"] 
+    : ["hsl(158 64% 20%)", "hsl(220 16% 22%)"];
 
   return (
     <div className="glass-card p-8 rounded-2xl animate-scale-in relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-emerald-subtle opacity-20"></div>
       <div className="relative">
         <h2 className="text-lg font-semibold mb-6 text-center">Net Worth</h2>
-        <div className="relative">
+        <div className={`relative ${theme === 'dark' ? 'drop-shadow-[0_0_30px_rgba(34,197,94,0.4)]' : ''}`}>
           <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
@@ -53,7 +57,11 @@ export function NetWorthCircle({ netWorth, target, surplusDeficit, editingTarget
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <button
               onClick={() => setEditingTarget(true)}
-              className="text-4xl font-bold text-white dark:[text-shadow:_1px_1px_0_#000,_-1px_1px_0_#000,_1px_-1px_0_#000,_-1px_-1px_0_#000] hover:scale-105 transition-transform cursor-pointer"
+              className={`text-4xl font-bold hover:scale-105 transition-transform cursor-pointer ${
+                theme === 'dark' 
+                  ? 'text-green-400 [text-shadow:_0_0_20px_rgba(34,197,94,0.6)]' 
+                  : 'text-white [text-shadow:_1px_1px_0_#000,_-1px_1px_0_#000,_1px_-1px_0_#000,_-1px_-1px_0_#000]'
+              }`}
               title="Click to edit target"
             >
               {netWorth >= 1000 ? `${formatAmount(netWorth / 1000)}k`.replace(/\.00/g, '') : formatAmount(netWorth)}
@@ -99,7 +107,11 @@ export function NetWorthCircle({ netWorth, target, surplusDeficit, editingTarget
         {surplusDeficit !== undefined && !editingTarget && (
           <div className="mt-6 text-center">
             <p className="text-xs text-muted-foreground mb-1">Monthly Status</p>
-            <div className={`flex items-center justify-center gap-2 ${surplusDeficit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`flex items-center justify-center gap-2 ${
+              surplusDeficit >= 0 
+                ? theme === 'dark' ? 'text-green-400' : 'text-green-600'
+                : 'text-red-600'
+            }`}>
               <span className="text-lg font-semibold">
                 {surplusDeficit >= 0 ? 'Surplus' : 'Deficit'}
               </span>
