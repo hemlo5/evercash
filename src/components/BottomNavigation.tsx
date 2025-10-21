@@ -50,6 +50,7 @@ export function BottomNavigation() {
             <button
               key={item.url}
               onClick={() => navigate(item.url)}
+              data-tutorial={`${item.title.toLowerCase()}-nav`}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                 isActive 
                   ? 'text-emerald-600 dark:text-emerald-400' 

@@ -42,19 +42,59 @@ export function TutorialTour() {
           target: '[data-tutorial="mobile-menu-button"]',
           content: (
             <div className="space-y-2">
-              <h4 className="font-bold">Menu</h4>
-              <p>Tap the menu, then go to Accounts to add your bank, card, or cash accounts.</p>
-              <p className="text-sm text-muted-foreground">You can also reach Import from this menu.</p>
+              <h4 className="font-bold">Accounts</h4>
+              <p>Tap the menu, then open <strong>Accounts</strong> to add your bank, card, or cash accounts.</p>
+              <p className="text-sm text-muted-foreground">You can manage accounts any time from the menu.</p>
             </div>
           ),
           placement: 'bottom',
+        },
+        {
+          target: '[data-tutorial="transactions-nav"]',
+          content: (
+            <div className="space-y-2">
+              <h4 className="font-bold">Transactions</h4>
+              <p>Track all your income and expenses. Add, edit, or import transactions here.</p>
+            </div>
+          ),
+          placement: 'top',
+        },
+        {
+          target: '[data-tutorial="budgets-nav"]',
+          content: (
+            <div className="space-y-2">
+              <h4 className="font-bold">Budgets</h4>
+              <p>Set monthly budgets per category and stay on track.</p>
+            </div>
+          ),
+          placement: 'top',
+        },
+        {
+          target: '[data-tutorial="goals-nav"]',
+          content: (
+            <div className="space-y-2">
+              <h4 className="font-bold">Goals</h4>
+              <p>Create goals (e.g., Emergency Fund, Vacation) and allocate surplus.</p>
+            </div>
+          ),
+          placement: 'top',
+        },
+        {
+          target: '[data-tutorial="reports-nav"]',
+          content: (
+            <div className="space-y-2">
+              <h4 className="font-bold">Reports</h4>
+              <p>Visualize spending trends and track net worth.</p>
+            </div>
+          ),
+          placement: 'top',
         },
         {
           target: '[data-tutorial="import-button"]',
           content: (
             <div className="space-y-2">
               <h4 className="font-bold">Import Transactions</h4>
-              <p>Import CSV/PDF statements. Our AI helps categorize automatically.</p>
+              <p>Quickly import CSV/PDF statements. AI auto-categorizes for you.</p>
             </div>
           ),
           placement: 'bottom',
