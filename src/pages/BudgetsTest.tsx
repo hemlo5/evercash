@@ -513,23 +513,23 @@ export default function BudgetsTest() {
           )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-6">
-          <div className="text-center p-3 md:p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200/20 dark:border-blue-700/30">
+          <div className="text-center p-3 md:p-4 rounded-lg border border-border bg-card dark:bg-black">
             <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Budgeted</p>
             <p className="text-lg md:text-2xl font-bold text-blue-600 dark:text-blue-400">{formatAmount((budgetData?.totalBudgeted || 0))}</p>
           </div>
-          <div className="text-center p-3 md:p-4 rounded-lg bg-red-50 dark:bg-red-900/30 border border-red-200/20 dark:border-red-700/30">
+          <div className="text-center p-3 md:p-4 rounded-lg border border-border bg-card dark:bg-black">
             <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Spent</p>
             <p className="text-lg md:text-2xl font-bold text-red-600 dark:text-red-400">{formatAmount((budgetData?.totalSpent || 0))}</p>
           </div>
-          <div className="text-center p-3 md:p-4 rounded-lg bg-green-50 dark:bg-green-900/30 border border-green-200/20 dark:border-green-700/30">
+          <div className="text-center p-3 md:p-4 rounded-lg border border-border bg-card dark:bg-black">
             <p className="text-xs md:text-sm text-muted-foreground mb-1">Total Income</p>
             <p className="text-lg md:text-2xl font-bold text-green-600 dark:text-green-400">{formatAmount((budgetData?.totalIncome || 0))}</p>
           </div>
-          <div className="text-center p-3 md:p-4 rounded-lg bg-purple-50 dark:bg-purple-900/30 border border-purple-200/20 dark:border-purple-700/30">
+          <div className="text-center p-3 md:p-4 rounded-lg border border-border bg-card dark:bg-black">
             <p className="text-xs md:text-sm text-muted-foreground mb-1">Available</p>
             <p className="text-lg md:text-2xl font-bold text-purple-600 dark:text-purple-400">{formatAmount((budgetData?.toBudget || 0))}</p>
           </div>
-          <div className={`text-center p-3 md:p-4 rounded-lg border col-span-2 sm:col-span-1 ${surplusDeficit >= 0 ? 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200/20 dark:border-emerald-700/30' : 'bg-orange-50 dark:bg-orange-900/30 border-orange-200/20 dark:border-orange-700/30'}`}>
+          <div className={`text-center p-3 md:p-4 rounded-lg border col-span-2 sm:col-span-1 bg-card dark:bg-black border-border`}>
             <div className="flex items-center justify-center gap-1 mb-1">
               {surplusDeficit >= 0 ? (
                 <TrendingUp className="w-3 h-3 md:w-4 md:h-4 text-emerald-600 dark:text-emerald-400" />

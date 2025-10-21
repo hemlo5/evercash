@@ -590,15 +590,15 @@ export default function Transactions() {
         </div>
 
         <div 
-          className={`glass-card p-4 rounded-xl cursor-pointer transition-all hover:scale-105 ${
-            transactionFilter === 'all' ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20' : 'hover:bg-accent/5'
+          className={`p-4 rounded-xl cursor-pointer transition-all hover:scale-105 border border-border bg-card ${
+            transactionFilter === 'all' ? 'ring-2 ring-blue-500' : 'hover:bg-accent/5'
           }`}
           onClick={() => setTransactionFilter('all')}
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">All Transactions</p>
-              <p className="text-2xl font-bold text-blue-600">{transactions.length}</p>
+              <p className="text-sm text-muted-foreground dark:text-foreground">All Transactions</p>
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{transactions.length}</p>
             </div>
             <div className="p-3 rounded-full bg-blue-100 dark:bg-blue-900/30">
               <RotateCcw className="w-6 h-6 text-blue-600" />
@@ -636,7 +636,7 @@ export default function Transactions() {
         </Button>
       </div>
 
-      <div className="glass-card p-6 rounded-2xl">
+      <div className="rounded-2xl p-6 border border-border bg-card dark:bg-black text-foreground shadow-lg">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">
             {transactionFilter === 'all' ? 'All Transactions' : 

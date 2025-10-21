@@ -27,7 +27,7 @@ export function TransactionItem({ merchant, category, amount, date }: Transactio
         <Icon className="w-4 h-4 md:w-5 md:h-5 text-accent" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-sm md:text-base truncate max-w-full" title={merchant}>{merchant}</p>
+        <p className="font-semibold text-sm md:text-base truncate max-w-full text-foreground" title={merchant}>{merchant}</p>
         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mt-1">
           <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground truncate max-w-fit">
             {category}
