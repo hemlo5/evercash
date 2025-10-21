@@ -38,10 +38,38 @@ export interface SupabasePayee {
 export class SupabaseAPI {
   private baseUrl: string;
   private token: string | null = null;
+  // Simple in-memory TTL cache
+  private cache = new Map<string, { value: any; expires: number }>();
+  private cacheTTL = Number((import.meta as any)?.env?.VITE_CACHE_TTL_MS || 180000); // default 3 minutes
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
     // Don't get token in constructor, get it fresh each time
+  }
+
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expires) {
+      this.cache.delete(key);
+      return null;
+    }
+    // console.log(`🟢 Cache hit: ${key}`);
+    return entry.value as T;
+  }
+
+  private setCache<T>(key: string, value: T, ttlMs?: number) {
+    const ttl = typeof ttlMs === 'number' ? ttlMs : this.cacheTTL;
+    this.cache.set(key, { value, expires: Date.now() + Math.max(1000, ttl) });
+  }
+
+  private invalidateCache(prefixes: string | string[]) {
+    const list = Array.isArray(prefixes) ? prefixes : [prefixes];
+    for (const key of Array.from(this.cache.keys())) {
+      if (list.some(prefix => key.startsWith(prefix))) {
+        this.cache.delete(key);
+      }
+    }
   }
 
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
@@ -110,11 +138,17 @@ export class SupabaseAPI {
 
   // Accounts
   async getAccounts(): Promise<SupabaseAccount[]> {
+    const cacheKey = 'accounts';
+    const cached = this.getFromCache<SupabaseAccount[]>(cacheKey);
+    if (cached) return cached;
+
     const accounts = await this.request('/accounts');
-    return accounts.map((acc: any) => ({
+    const mapped = accounts.map((acc: any) => ({
       ...acc,
       balance: acc.balance / 100, // Convert from cents to dollars
     }));
+    this.setCache(cacheKey, mapped);
+    return mapped;
   }
 
   async createAccount(account: Partial<SupabaseAccount>): Promise<string> {
@@ -127,7 +161,7 @@ export class SupabaseAPI {
         closed: account.closed || false,
       }),
     });
-
+    this.invalidateCache(['accounts']);
     return response.data.id;
   }
 
@@ -139,35 +173,45 @@ export class SupabaseAPI {
         balance: updates.balance !== undefined ? Math.round(updates.balance * 100) : undefined,
       }),
     });
+    this.invalidateCache(['accounts']);
   }
 
   async deleteAccount(id: string): Promise<void> {
     await this.request(`/accounts/${id}`, {
       method: 'DELETE',
     });
+    this.invalidateCache(['accounts', `transactions:account:${id}`]);
   }
 
   async closeAccount(id: string): Promise<void> {
     await this.updateAccount(id, { closed: true });
+    this.invalidateCache(['accounts']);
   }
 
   async reopenAccount(id: string): Promise<void> {
     await this.updateAccount(id, { closed: false });
+    this.invalidateCache(['accounts']);
   }
 
   // Transactions
   async getTransactions(accountId?: string): Promise<SupabaseTransaction[]> {
     const url = accountId ? `/transactions?account=${accountId}` : '/transactions';
+    const cacheKey = accountId ? `transactions:account:${accountId}` : 'transactions:all';
+    const cached = this.getFromCache<SupabaseTransaction[]>(cacheKey);
+    if (cached) return cached;
+
     console.log('🔍 Fetching transactions from:', `${this.baseUrl}${url}`);
     const transactions = await this.request(url);
     console.log('📊 Raw transactions from Supabase:', transactions?.length || 0, 'transactions');
     if (transactions?.length > 0) {
       console.log('📋 Sample transaction:', transactions[0]);
     }
-    return transactions.map((txn: any) => ({
+    const mapped = transactions.map((txn: any) => ({
       ...txn,
       amount: typeof txn.amount === 'number' ? txn.amount / 100 : txn.amount,
     }));
+    this.setCache(cacheKey, mapped);
+    return mapped;
   }
 
   async createTransaction(transaction: any): Promise<string> {
@@ -178,6 +222,10 @@ export class SupabaseAPI {
         amount: Math.round((transaction.amount || 0) * 100),
       }),
     });
+
+    // Invalidate related caches
+    const acc = transaction.account_id || transaction.account;
+    this.invalidateCache(['transactions:all', `transactions:account:${acc || ''}`, 'accounts']);
 
     return response.data.id;
   }
@@ -194,12 +242,14 @@ export class SupabaseAPI {
       method: 'PUT',
       body: JSON.stringify(updateData),
     });
+    this.invalidateCache(['transactions:all', 'transactions:account:', 'accounts']);
   }
 
   async deleteTransaction(transactionId: string): Promise<void> {
     await this.request(`/transactions/${transactionId}`, {
       method: 'DELETE',
     });
+    this.invalidateCache(['transactions:all', 'transactions:account:', 'accounts']);
   }
 
   async deleteAllTransactions(): Promise<void> {
@@ -208,6 +258,7 @@ export class SupabaseAPI {
       method: 'DELETE',
     });
     console.log('✅ Frontend: Bulk delete response:', response);
+    this.invalidateCache(['transactions:all', 'transactions:account:', 'accounts']);
   }
 
   async setBudgetAmount(categoryId: string, month: string, amountCents: number): Promise<any> {
@@ -219,16 +270,27 @@ export class SupabaseAPI {
         amount: amountCents
       })
     });
+    this.invalidateCache([`budget:${month}`, `budgetmonth:${month}`]);
     return response.data;
   }
 
   async getBudgetAmounts(month: string): Promise<any[]> {
-    return await this.request(`/budgets/${month}`);
+    const cacheKey = `budget:${month}`;
+    const cached = this.getFromCache<any[]>(cacheKey);
+    if (cached) return cached;
+    const data = await this.request(`/budgets/${month}`);
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   // Goals
   async getGoals(): Promise<any[]> {
-    return await this.request('/goals');
+    const cacheKey = 'goals';
+    const cached = this.getFromCache<any[]>(cacheKey);
+    if (cached) return cached;
+    const data = await this.request('/goals');
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async createGoal(goalData: any): Promise<any> {
@@ -236,6 +298,7 @@ export class SupabaseAPI {
       method: 'POST',
       body: JSON.stringify(goalData)
     });
+    this.invalidateCache(['goals']);
     return response.data;
   }
 
@@ -244,6 +307,7 @@ export class SupabaseAPI {
       method: 'PUT',
       body: JSON.stringify(updates)
     });
+    this.invalidateCache(['goals']);
     return response.data;
   }
 
@@ -251,11 +315,17 @@ export class SupabaseAPI {
     await this.request(`/goals/${goalId}`, {
       method: 'DELETE'
     });
+    this.invalidateCache(['goals']);
   }
 
   // Categories
   async getCategories(): Promise<SupabaseCategory[]> {
-    return await this.request('/categories');
+    const cacheKey = 'categories';
+    const cached = this.getFromCache<SupabaseCategory[]>(cacheKey);
+    if (cached) return cached;
+    const data = await this.request('/categories');
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   async createCategory(category: Partial<SupabaseCategory>): Promise<string> {
@@ -263,18 +333,28 @@ export class SupabaseAPI {
       method: 'POST',
       body: JSON.stringify(category),
     });
-
+    this.invalidateCache(['categories']);
     return response.data.id;
   }
 
   // Payees
   async getPayees(): Promise<SupabasePayee[]> {
-    return await this.request('/payees');
+    const cacheKey = 'payees';
+    const cached = this.getFromCache<SupabasePayee[]>(cacheKey);
+    if (cached) return cached;
+    const data = await this.request('/payees');
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   // Budget
   async getBudgetMonth(month: string): Promise<any> {
-    return await this.request(`/budget/${month}`);
+    const cacheKey = `budgetmonth:${month}`;
+    const cached = this.getFromCache<any>(cacheKey);
+    if (cached) return cached;
+    const data = await this.request(`/budget/${month}`);
+    this.setCache(cacheKey, data);
+    return data;
   }
 
   // CSV Import
@@ -292,6 +372,7 @@ export class SupabaseAPI {
       },
     });
 
+    this.invalidateCache(['transactions:all', `transactions:account:${accountId}`, 'accounts']);
     return { imported: response.imported };
   }
 }
