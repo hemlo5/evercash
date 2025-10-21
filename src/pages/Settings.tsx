@@ -5,20 +5,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { AICategorySettings } from "@/components/AICategorySettings";
 import { useUser } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 // Integration note: Use useSettings() to persist preferences
 // Store theme in localStorage or sync with user profile
 export default function Settings() {
   const { toast } = useToast();
-  const [darkMode, setDarkMode] = useState(true);
+  const { theme, toggleTheme } = useTheme();
   const { user, setUser } = useUser();
   const { user: authUser, signOut } = useAuth();
   const [nameInput, setNameInput] = useState(user?.name || '');
   const [emailInput, setEmailInput] = useState(user?.email || '');
   const [apiUserId, setApiUserId] = useState<string | null>(null);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
   const googleSub = (authUser as any)?.identities?.find((i: any) => i?.provider === 'google')?.identity_data?.sub as string | undefined;
 
   // Update inputs when user changes
@@ -139,25 +141,16 @@ export default function Settings() {
             <p className="text-sm text-muted-foreground">Toggle between light and dark themes</p>
           </div>
           <Switch
-            checked={darkMode}
-            onCheckedChange={(checked) => {
-              setDarkMode(checked);
-              toast({
-                title: checked ? "Dark mode enabled" : "Light mode enabled",
-              });
+            checked={theme === 'dark'}
+            onCheckedChange={() => {
+              toggleTheme();
+              toast({ title: theme === 'dark' ? 'Light mode enabled' : 'Dark mode enabled' });
             }}
           />
         </div>
       </div>
 
-      <div className="glass-card p-8 rounded-2xl space-y-6 animate-fade-in-up">
-        <div className="flex items-center gap-3 mb-4">
-          <Sparkles className="w-6 h-6 text-purple-500" />
-          <h2 className="text-2xl font-bold">AI Features</h2>
-        </div>
-        
-        <AICategorySettings />
-      </div>
+      {/* AI Features temporarily hidden: provider is fixed to Hugging Face BERT */}
 
       <div className="glass-card p-8 rounded-2xl space-y-6 animate-fade-in-up">
         <div className="flex items-center gap-3 mb-4">
@@ -193,12 +186,7 @@ export default function Settings() {
           <Button
             variant="outline"
             className="w-full justify-start h-12 border-accent/30 hover:bg-accent/10"
-            onClick={() => {
-              toast({
-                title: "Export Started",
-                description: "Preparing your data for download...",
-              });
-            }}
+            onClick={() => setComingSoonOpen(true)}
           >
             <Download className="w-5 h-5 mr-2" />
             Export All Data (JSON)
@@ -206,12 +194,7 @@ export default function Settings() {
           <Button
             variant="outline"
             className="w-full justify-start h-12 border-accent/30 hover:bg-accent/10"
-            onClick={() => {
-              toast({
-                title: "PDF Export",
-                description: "Generating comprehensive budget report...",
-              });
-            }}
+            onClick={() => setComingSoonOpen(true)}
           >
             <FileText className="w-5 h-5 mr-2" />
             Export PDF Report
@@ -243,6 +226,18 @@ export default function Settings() {
           </Button>
         </div>
       </div>
+
+      {/* Coming Soon Dialog for exports */}
+      <Dialog open={comingSoonOpen} onOpenChange={setComingSoonOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Coming Soon</DialogTitle>
+            <DialogDescription>
+              This export feature will be available within a few days. — Regards, Evercash
+            </DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

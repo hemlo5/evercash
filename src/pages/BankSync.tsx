@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link2, CheckCircle2, AlertCircle, Loader2, Trash2, RefreshCw, Settings, Download, Upload } from "lucide-react";
+import { Link2, CheckCircle2, AlertCircle, Loader2, Trash2, RefreshCw, Settings, Download, Upload, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BankSyncModal } from "@/components/BankSyncModal";
@@ -19,6 +20,7 @@ interface BankConnection {
 }
 
 export default function BankSync() {
+  const navigate = useNavigate();
   const [connections, setConnections] = useState<BankConnection[]>([]);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -139,7 +141,7 @@ export default function BankSync() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 relative">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -343,6 +345,29 @@ export default function BankSync() {
         open={syncModalOpen} 
         onOpenChange={setSyncModalOpen}
       />
+      {/* Locked overlay */}
+      <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-md flex items-center justify-center">
+        <button
+          aria-label="Close"
+          onClick={() => navigate(-1)}
+          className="absolute top-4 right-4 p-2 rounded-full bg-background/70 border border-border hover:bg-accent/10 transition"
+        >
+          {/* using an SVG X to avoid extra imports */}
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <div className="glass-card border border-accent/20 rounded-2xl p-8 md:p-10 text-center shadow-2xl">
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
+            <Lock className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Coming Soon</h2>
+          <p className="text-sm text-muted-foreground max-w-md">
+            This feature will be available within a few days.
+          </p>
+          <p className="mt-4 text-xs text-muted-foreground">— Regards, Evercash</p>
+        </div>
+      </div>
     </div>
   );
 }

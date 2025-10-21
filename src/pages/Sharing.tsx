@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Mail, QrCode, UserCheck, UserX, Crown, Loader2 } from "lucide-react";
+import { Users, Mail, QrCode, UserCheck, UserX, Crown, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useApi } from "@/contexts/HybridApiContext";
+import { useNavigate } from "react-router-dom";
 import { sanitizeEmail } from "@/lib/sanitize";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ interface Collaborator {
 
 export default function Sharing() {
   const { api } = useApi();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -130,7 +132,7 @@ export default function Sharing() {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in max-w-4xl">
+    <div className="p-8 space-y-8 animate-fade-in max-w-4xl relative">
       <div>
         <h1 className="text-4xl font-bold mb-2">Shared Budget</h1>
         <p className="text-muted-foreground">Collaborate with family or partners</p>
@@ -236,6 +238,28 @@ export default function Sharing() {
             <Badge variant="outline">Viewer</Badge>
             <p className="text-muted-foreground">Read-only access to all data</p>
           </div>
+        </div>
+      </div>
+      {/* Locked overlay */}
+      <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-md flex items-center justify-center">
+        <button
+          aria-label="Close"
+          onClick={() => navigate(-1)}
+          className="absolute top-4 right-4 p-2 rounded-full bg-background/70 border border-border hover:bg-accent/10 transition"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <div className="glass-card border border-accent/20 rounded-2xl p-8 md:p-10 text-center shadow-2xl">
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center">
+            <Lock className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Coming Soon</h2>
+          <p className="text-sm text-muted-foreground max-w-md">
+            This feature will be available within a few days.
+          </p>
+          <p className="mt-4 text-xs text-muted-foreground">— Regards, Evercash</p>
         </div>
       </div>
     </div>
