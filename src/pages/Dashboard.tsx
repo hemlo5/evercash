@@ -15,11 +15,12 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useSimpleCurrency } from "@/contexts/SimpleCurrencyContext";
 import { useUser } from "@/contexts/UserContext";
 import { generateAIInsights, type AIInsight } from "@/lib/ai-insights";
-import { CurrencySelector } from "@/components/CurrencySelector";
-import { ThemeToggle } from "@/components/ThemeToggle";
+// Removed CurrencySelector and ThemeToggle from dashboard header
 import { toast } from "sonner";
 import type { Account as ApiAccount, Transaction as ApiTransaction } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
+import { CurrencySelector } from "@/components/CurrencySelector";
+import { MobileNavButton } from "@/components/MobileNav";
 
 interface BudgetData {
   incomeMonth: number;
@@ -225,59 +226,56 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8 animate-fade-in">
-      {/* Desktop Header Layout */}
-      <div className="hidden md:flex md:items-center md:justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 leading-tight">Welcome back, {user?.name || 'User'} 👋</h1>
-          <p className="text-muted-foreground text-sm md:text-base">Here's your financial overview</p>
+      {/* Top header bar */}
+      <div className={`rounded-none border-b border-border px-4 py-3 md:px-8 md:py-4 shadow-sm mx-[-1rem] md:mx-[-2rem] mt-[-1rem] md:mt-[-2rem] ${
+        theme === 'dark' ? 'bg-black' : 'bg-white'
+      }`}>
+        {/* Mobile: brand + controls (same row) */}
+        <div className="md:hidden flex items-center justify-between">
+          <h1 className={`font-extrabold tracking-tight text-xl sm:text-2xl flex-shrink-0 ${
+            theme === 'dark' 
+              ? 'bg-gradient-to-r from-green-400 to-green-300 bg-clip-text text-transparent'
+              : 'bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent'
+          }`}>EVERCASH</h1>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              onClick={() => navigate('/import')}
+              className={`font-semibold text-xs px-2 py-2 whitespace-nowrap flex-shrink-0 ${
+                theme === 'dark'
+                  ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'
+                  : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+              }`}
+            >
+              <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              Import
+            </Button>
+            <div className="md:hidden">
+              <MobileNavButton />
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-          <CurrencySelector 
-            value={currentCurrency} 
-            onChange={setCurrency}
-            className=""
-            showIcon={true}
-          />
-          <ThemeToggle />
-          <Button
-            onClick={() => navigate('/import')}
-            className={`font-bold transition-all text-sm md:text-base px-3 md:px-4 py-2 ${
-              theme === 'dark'
-                ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_20px_rgba(0,255,0,0.4)]'
-                : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-            }`}
-          >
-            <Upload className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
-            <span className="hidden sm:inline">Import Transactions</span>
-            <span className="sm:hidden">Import</span>
-          </Button>
-        </div>
-      </div>
-      
-      {/* Mobile Header Layout - Import button on rightmost */}
-      <div className="md:hidden space-y-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">Welcome back, {user?.name || 'User'} 👋</h1>
-          <p className="text-muted-foreground text-sm">Here's your financial overview</p>
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <CurrencySelector 
-            value={currentCurrency} 
-            onChange={setCurrency}
-            className=""
-            showIcon={true}
-          />
-          <Button
-            onClick={() => navigate('/import')}
-            className={`font-bold transition-all text-sm px-3 py-2 ml-auto ${
-              theme === 'dark'
-                ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_20px_rgba(0,255,0,0.4)]'
-                : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-[0_0_15px_rgba(16,185,129,0.3)]'
-            }`}
-          >
-            <Upload className="w-4 h-4 mr-1" />
-            <span>Import</span>
-          </Button>
+        {/* Desktop: brand left, controls right */}
+        <div className="hidden md:flex items-center justify-between">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-600 to-emerald-400 dark:from-green-400 dark:to-green-300 bg-clip-text text-transparent">EVERCASH</h1>
+          <div className="flex items-center gap-3">
+            <CurrencySelector
+              value={currentCurrency}
+              onChange={setCurrency}
+              showIcon={true}
+            />
+            <Button
+              onClick={() => navigate('/import')}
+              className={`font-semibold text-sm md:text-base px-3 md:px-4 py-2 ${
+                theme === 'dark'
+                  ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'
+                  : 'bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+              }`}
+            >
+              <Upload className="w-4 h-4 md:w-5 md:h-5 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Import Transactions</span>
+              <span className="sm:hidden">Import</span>
+            </Button>
+          </div>
         </div>
       </div>
 

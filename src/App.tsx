@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useApi } from "@/contexts/HybridApiContext";
@@ -113,6 +113,20 @@ function AuthenticatedApp() {
     );
   }
 
+  // Helper inside Router to hide hamburger on Dashboard (now included in Dashboard header)
+  const MobileButtonConditional = () => {
+    const location = useLocation();
+    if (location.pathname === "/") {
+      // On Dashboard, hamburger is included in the header directly
+      return null;
+    }
+    return (
+      <div className="fixed top-4 right-4 z-30 md:hidden">
+        <MobileNavButton />
+      </div>
+    );
+  };
+
   // Show main app if authenticated
   return (
     <BrowserRouter>
@@ -120,10 +134,8 @@ function AuthenticatedApp() {
         <div className="flex min-h-screen w-full">
           <AppSidebar className="hidden md:flex" />
           
-          {/* Global Mobile Navigation Button */}
-          <div className="fixed top-4 right-4 z-30 md:hidden">
-            <MobileNavButton />
-          </div>
+          {/* Global Mobile Navigation Button (hidden on Dashboard) */}
+          <MobileButtonConditional />
           
           <main className="flex-1 overflow-auto pb-16 md:pb-0">
             <Routes>
