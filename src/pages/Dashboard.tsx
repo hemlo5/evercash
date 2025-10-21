@@ -20,6 +20,7 @@ import type { Account as ApiAccount, Transaction as ApiTransaction } from "@/lib
 import { useNavigate } from "react-router-dom";
 import { CurrencySelector } from "@/components/CurrencySelector";
 import { MobileNavButton } from "@/components/MobileNav";
+import { TutorialTour } from "@/components/TutorialTour";
 
 interface BudgetData {
   incomeMonth: number;
@@ -232,8 +233,10 @@ export default function Dashboard() {
               : 'bg-gradient-to-r from-emerald-600 to-emerald-400 bg-clip-text text-transparent'
           }`}>EVERCASH</h1>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <TutorialTour />
             <Button
               onClick={() => navigate('/import')}
+              data-tutorial="import-button"
               className={`font-semibold text-xs px-2 py-2 whitespace-nowrap flex-shrink-0 ${
                 theme === 'dark'
                   ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'
@@ -257,8 +260,10 @@ export default function Dashboard() {
               onChange={setCurrency}
               showIcon={true}
             />
+            <TutorialTour />
             <Button
               onClick={() => navigate('/import')}
+              data-tutorial="import-button"
               className={`font-semibold text-sm md:text-base px-3 md:px-4 py-2 ${
                 theme === 'dark'
                   ? 'bg-gradient-to-r from-green-500 to-green-400 hover:from-green-400 hover:to-green-300 text-black shadow-[0_0_12px_rgba(0,255,0,0.35)]'

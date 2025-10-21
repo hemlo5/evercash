@@ -23,16 +23,16 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Accounts", url: "/accounts", icon: Building2 },
-  { title: "Budgets", url: "/budgets", icon: Wallet },
-  { title: "Transactions", url: "/transactions", icon: Receipt },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Goals", url: "/goals", icon: Target },
-  { title: "Import", url: "/import", icon: Upload },
-  { title: "Bank Sync", url: "/bank-sync", icon: Link2 },
-  { title: "Sharing", url: "/sharing", icon: Users },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Dashboard", url: "/", icon: LayoutDashboard, dataTutorial: "dashboard-nav" },
+  { title: "Accounts", url: "/accounts", icon: Building2, dataTutorial: "accounts-nav" },
+  { title: "Budgets", url: "/budgets", icon: Wallet, dataTutorial: "budgets-nav" },
+  { title: "Transactions", url: "/transactions", icon: Receipt, dataTutorial: "transactions-nav" },
+  { title: "Reports", url: "/reports", icon: BarChart3, dataTutorial: "reports-nav" },
+  { title: "Goals", url: "/goals", icon: Target, dataTutorial: "goals-nav" },
+  { title: "Import", url: "/import", icon: Upload, dataTutorial: "import-nav" },
+  { title: "Bank Sync", url: "/bank-sync", icon: Link2, dataTutorial: "banksync-nav" },
+  { title: "Sharing", url: "/sharing", icon: Users, dataTutorial: "sharing-nav" },
+  { title: "Settings", url: "/settings", icon: Settings, dataTutorial: "settings-nav" },
 ];
 
 interface AppSidebarProps {
@@ -60,6 +60,7 @@ export function AppSidebar({ className }: AppSidebarProps) {
                   <NavLink
                     to={item.url}
                     end
+                    data-tutorial={item.dataTutorial}
                     className={({ isActive }) =>
                       `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                         isActive
