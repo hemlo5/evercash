@@ -89,9 +89,28 @@ export default function Import() {
   const loadAccounts = async () => {
     try {
       const accountsData = await api.getAccounts();
-      setAccounts(accountsData);
-      if (accountsData.length > 0) {
-        setSelectedAccount(accountsData[0].id);
+      // If no accounts exist, auto-provision a default for imports
+      if (!accountsData || accountsData.length === 0) {
+        try {
+          const createdId = await api.createAccount({
+            name: 'Imported Transactions',
+            type: 'checking',
+            balance: 0,
+            closed: false,
+          });
+          const refreshed = await api.getAccounts();
+          setAccounts(refreshed);
+          setSelectedAccount(createdId);
+          toast.success('Created default account: Imported Transactions');
+          return;
+        } catch (e) {
+          console.error('Failed to auto-create default account:', e);
+        }
+      } else {
+        setAccounts(accountsData);
+        if (accountsData.length > 0) {
+          setSelectedAccount(accountsData[0].id);
+        }
       }
     } catch (error) {
       console.error('Failed to load accounts:', error);
@@ -363,9 +382,48 @@ export default function Import() {
   };
 
   // Add transactions to Supabase database
+  const ensureImportAccount = async (): Promise<string | null> => {
+    if (!api) return null;
+    try {
+      // Prefer already selected account
+      if (selectedAccount) return selectedAccount;
+      // Use loaded accounts if present
+      let accs = accounts;
+      if (!accs || accs.length === 0) {
+        accs = await api.getAccounts();
+      }
+      if (accs && accs.length > 0) {
+        const id = accs[0].id;
+        setSelectedAccount(id);
+        return id;
+      }
+      // None exist: create default
+      const createdId = await api.createAccount({
+        name: 'Imported Transactions',
+        type: 'checking',
+        balance: 0,
+        closed: false,
+      });
+      const refreshed = await api.getAccounts();
+      setAccounts(refreshed);
+      setSelectedAccount(createdId);
+      toast.success('Created default account: Imported Transactions');
+      return createdId;
+    } catch (e) {
+      console.error('Failed to ensure default account:', e);
+      return null;
+    }
+  };
+
   const addToSupabase = async () => {
-    if (!api || validTransactions.length === 0 || !selectedAccount) {
-      toast.error('Please select an account and ensure you have valid transactions');
+    if (!api || validTransactions.length === 0) {
+      toast.error('No valid transactions to add');
+      return;
+    }
+    // Ensure an account exists and is selected
+    const ensuredAccountId = await ensureImportAccount();
+    if (!ensuredAccountId) {
+      toast.error('Could not ensure an account to import into');
       return;
     }
 
@@ -391,7 +449,7 @@ export default function Import() {
       const createWithFallbacks = async (transaction: ParsedTransaction) => {
         const finalAmount = transaction.type === 'expense' ? -transaction.amount : transaction.amount;
         const basePayload: any = {
-          account: selectedAccount,
+          account: ensuredAccountId,
           amount: finalAmount,
           payee: (transaction.description || 'Unknown Transaction').trim().slice(0, 100),
           date: transaction.date,
@@ -400,7 +458,7 @@ export default function Import() {
         let res = await tryCreate(basePayload);
         if (!res.ok) {
           const minimal = {
-            account: selectedAccount,
+            account: ensuredAccountId,
             amount: finalAmount,
             date: transaction.date,
             payee: (transaction.description || 'Unknown').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 60),
@@ -784,7 +842,7 @@ export default function Import() {
             <div className="flex gap-2">
               <Button 
                 onClick={addToSupabase}
-                disabled={isProcessing || !selectedAccount || savedToSupabase}
+                disabled={isProcessing || savedToSupabase}
                 className={savedToSupabase ? "bg-green-600 hover:bg-green-700" : "bg-gradient-emerald hover:opacity-90"}
               >
                 {savedToSupabase ? (
