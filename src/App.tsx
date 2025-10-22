@@ -13,6 +13,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { MobileNavButton } from "@/components/MobileNav";
 import { BottomNavigation } from "@/components/BottomNavigation";
+import { initAnalytics, trackPageview } from "@/lib/analytics";
 // Removed onboarding Q&A flow
 import { AuthCallback } from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
@@ -36,6 +37,7 @@ const queryClient = new QueryClient();
 function AuthenticatedApp() {
   const { api, loading, isAuthenticated, retryConnection } = useApi();
   const { user, profile, loading: authLoading } = useAuth();
+  const location = useLocation();
   const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('actual-token');
 
   // When token appears (after Google sign-in), ensure API session re-initializes
@@ -44,6 +46,15 @@ function AuthenticatedApp() {
       retryConnection();
     }
   }, [hasToken, isAuthenticated, retryConnection]);
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
+    const path = location.pathname + (location.search || "");
+    trackPageview(path);
+  }, [location]);
 
   // Removed onboarding Q&A popup; start tutorial instead from UI
 
