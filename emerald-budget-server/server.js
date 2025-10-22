@@ -10,6 +10,8 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
 require('dotenv').config();
+const path = require('path');
+const fs = require('fs').promises;
 
 // Import Supabase configuration
 const { SupabaseDB, initializeDatabase } = require('./supabase-config');

@@ -21,6 +21,7 @@ import { useNavigate } from "react-router-dom";
 import { CurrencySelector } from "@/components/CurrencySelector";
 import { MobileNavButton } from "@/components/MobileNav";
 import { TutorialTour } from "@/components/TutorialTour";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface BudgetData {
   incomeMonth: number;
@@ -271,6 +272,7 @@ export default function Dashboard() {
             }}
           >EVERCASH</h1>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <CurrencySelector
               value={currentCurrency}
               onChange={setCurrency}
