@@ -1,5 +1,5 @@
 // Nanonets API Integration for PDF/CSV Import (proxied via backend to avoid CORS)
-const API_BASE = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5006');
+const API_BASE = import.meta.env.DEV ? '/api' : (import.meta.env.VITE_API_BASE_URL || 'https://api.evercash.in');
 
 export interface NanonetsResponse {
   message?: string;
@@ -439,6 +439,86 @@ export class NanonetsAPI {
   }
   
   /**
+   * Parse various date formats to ISO (YYYY-MM-DD)
+   */
+  private parseDate(dateStr: string): string {
+    try {
+      const cleaned = dateStr.trim().replace(/^(date|posting|transaction):\s*/i, '');
+
+      // DD-MMM-YYYY or DD-MMM-YY (e.g., 20-Aug-2020)
+      const monthMap: { [key: string]: number } = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+      };
+      let m = cleaned.match(/^(\d{1,2})[-\/ ]?([A-Za-z]{3,})[-\/ ]?(\d{2,4})$/);
+      if (m) {
+        const day = parseInt(m[1]);
+        const mon = monthMap[m[2].substring(0, 3).toLowerCase()];
+        const yr = m[3].length === 2 ? (parseInt(m[3]) > 50 ? 1900 + parseInt(m[3]) : 2000 + parseInt(m[3])) : parseInt(m[3]);
+        if (mon) {
+          const d = new Date(yr, mon - 1, day);
+          if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        }
+      }
+
+      // MMM-DD-YYYY or MMM-DD-YY (e.g., Aug-20-2020)
+      m = cleaned.match(/^([A-Za-z]{3,})[-\/ ]?(\d{1,2})[-\/ ]?(\d{2,4})$/);
+      if (m) {
+        const mon = monthMap[m[1].substring(0, 3).toLowerCase()];
+        const day = parseInt(m[2]);
+        const yr = m[3].length === 2 ? (parseInt(m[3]) > 50 ? 1900 + parseInt(m[3]) : 2000 + parseInt(m[3])) : parseInt(m[3]);
+        if (mon) {
+          const d = new Date(yr, mon - 1, day);
+          if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+        }
+      }
+
+      // Nov - 01 (assume current year)
+      const monthDayMatch = cleaned.match(/(\w+)\s*[-–]\s*(\d{1,2})/);
+      if (monthDayMatch) {
+        const [, monthStr, day] = monthDayMatch;
+        const month = monthMap[monthStr.toLowerCase().substring(0, 3)];
+        if (month) {
+          const currentYear = new Date().getFullYear();
+          return `${currentYear}-${month.toString().padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+      }
+
+      // Numeric formats
+      const formats = [
+        /(\d{1,2})-(\d{1,2})-(\d{4})/, // DD-MM-YYYY
+        /(\d{1,2})\/(\d{1,2})\/(\d{4})/, // MM/DD/YYYY
+        /(\d{1,2})\/(\d{1,2})\/(\d{2})/, // MM/DD/YY
+        /(\d{4})-(\d{1,2})-(\d{1,2})/, // YYYY-MM-DD
+      ];
+
+      for (const format of formats) {
+        const match = cleaned.match(format);
+        if (match) {
+          let [, part1, part2, part3] = match;
+          if (part3.length === 4) {
+            if (format === formats[0]) {
+              const d = new Date(parseInt(part3), parseInt(part2) - 1, parseInt(part1));
+              if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+            } else {
+              const d = new Date(parseInt(part3), parseInt(part1) - 1, parseInt(part2));
+              if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+            }
+          } else if (part1.length === 4) {
+            const d = new Date(parseInt(part1), parseInt(part2) - 1, parseInt(part3));
+            if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+          }
+        }
+      }
+
+      // Fallback to current date if parsing fails
+      return new Date().toISOString().split('T')[0];
+    } catch (e) {
+      return new Date().toISOString().split('T')[0];
+    }
+  }
+  
+  /**
    * Fallback table parsing when headers aren't detected
    */
   private parseFallbackTable(rowMatches: string[], transactions: ParsedTransaction[]): void {
@@ -493,31 +573,40 @@ export class NanonetsAPI {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       
-      // Look for date patterns at the start of lines
-      const dateMatch = line.match(/^(\w+\s*[-–]\s*\d{1,2})/);
-      if (dateMatch && i + 1 < lines.length) {
+      // Look for date patterns at the start of lines (e.g., Aug-20, Nov - 01)
+      let dateAnchor: string | null = null;
+      let parsedDate: string | null = null;
+      const monthFirst = line.match(/^(\w+\s*[-–]\s*\d{1,2})/);
+      if (monthFirst) {
+        dateAnchor = monthFirst[1];
+        parsedDate = this.parseFlexibleDate(dateAnchor);
+      }
+      // Fallback: DD-MMM-YYYY or DD-MMM-YY at line start
+      if (!parsedDate) {
+        const ddMon = line.match(/^(\d{1,2}[-\/ ]?[A-Za-z]{3}[-\/ ]?\d{2,4})/);
+        if (ddMon) {
+          dateAnchor = ddMon[1];
+          parsedDate = this.parseDate(dateAnchor);
+        }
+      }
+      
+      if (parsedDate && i + 1 < lines.length) {
         const nextLines = lines.slice(i, i + 3).join(' ');
-        
         // Look for amount patterns
         const amountMatches = nextLines.match(/(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/g);
         if (amountMatches && amountMatches.length >= 2) {
-          const parsedDate = this.parseFlexibleDate(dateMatch[1]);
-          if (parsedDate) {
-            // Extract description (text between date and amounts)
-            const descMatch = nextLines.match(new RegExp(`${dateMatch[1]}\\s+([^\\d]+)`));
-            const description = descMatch ? descMatch[1].trim() : 'Transaction';
-            
-            // Assume last amount is balance, second-to-last is transaction amount
-            const transactionAmount = this.parseFlexibleAmount(amountMatches[amountMatches.length - 2]);
-            
-            if (transactionAmount > 0) {
-              transactions.push({
-                date: parsedDate,
-                description: this.cleanDescription(description),
-                amount: transactionAmount,
-                type: description.toLowerCase().includes('deposit') ? 'income' : 'expense',
-              });
-            }
+          // Extract description (text between date and amounts)
+          const descMatch = dateAnchor ? nextLines.match(new RegExp(`${dateAnchor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\s+([^\d]+)`)) : null;
+          const description = descMatch ? descMatch[1].trim() : 'Transaction';
+          // Assume last amount is balance, second-to-last is transaction amount
+          const transactionAmount = this.parseFlexibleAmount(amountMatches[amountMatches.length - 2]);
+          if (transactionAmount > 0) {
+            transactions.push({
+              date: parsedDate,
+              description: this.cleanDescription(description),
+              amount: transactionAmount,
+              type: description.toLowerCase().includes('deposit') ? 'income' : 'expense',
+            });
           }
         }
       }
@@ -566,26 +655,6 @@ export class NanonetsAPI {
 
   /**
    * Parse various date formats
-   */
-  private parseDate(dateStr: string): string {
-    try {
-      // Remove extra whitespace and common prefixes
-      const cleaned = dateStr.trim().replace(/^(date|posting|transaction):\s*/i, '');
-      
-      // Handle "Nov - 01" format first
-      const monthDayMatch = cleaned.match(/(\w+)\s*[-–]\s*(\d{1,2})/);
-      if (monthDayMatch) {
-        const [, monthStr, day] = monthDayMatch;
-        const monthMap: { [key: string]: number } = {
-          'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
-          'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
-        };
-        
-        const month = monthMap[monthStr.toLowerCase().substring(0, 3)];
-        if (month) {
-          const currentYear = new Date().getFullYear();
-          return `${currentYear}-${month.toString().padStart(2, '0')}-${day.padStart(2, '0')}`;
-        }
       }
       
       // Try parsing different formats
