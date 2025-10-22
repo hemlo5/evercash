@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
 import { Button } from '@/components/ui/button';
 import { HelpCircle } from 'lucide-react';
@@ -181,6 +181,7 @@ export function TutorialTour() {
     const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
     if (finishedStatuses.includes(status)) {
       setRun(false);
+      try { localStorage.setItem('tutorial_seen', '1'); } catch {}
     }
   };
 
@@ -189,6 +190,17 @@ export function TutorialTour() {
     setSteps(buildSteps(isMobile));
     setRun(true);
   };
+
+  useEffect(() => {
+    try {
+      const seen = localStorage.getItem('tutorial_seen');
+      if (!seen) {
+        const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+        setSteps(buildSteps(isMobile));
+        setRun(true);
+      }
+    } catch {}
+  }, []);
 
   return (
     <>

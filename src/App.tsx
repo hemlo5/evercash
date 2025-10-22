@@ -11,10 +11,9 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SimpleCurrencyProvider } from "@/contexts/SimpleCurrencyContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { useAuth } from "@/contexts/AuthContext";
-import OnboardingModal from "@/components/OnboardingModal";
 import { MobileNavButton } from "@/components/MobileNav";
 import { BottomNavigation } from "@/components/BottomNavigation";
-import { getOnboardingData } from "@/lib/supabase-client";
+// Removed onboarding Q&A flow
 import { AuthCallback } from "./pages/AuthCallback";
 import Dashboard from "./pages/Dashboard";
 import Accounts from "./pages/Accounts";
@@ -37,7 +36,6 @@ const queryClient = new QueryClient();
 function AuthenticatedApp() {
   const { api, loading, isAuthenticated, retryConnection } = useApi();
   const { user, profile, loading: authLoading } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const hasToken = typeof window !== 'undefined' && !!localStorage.getItem('actual-token');
 
   // When token appears (after Google sign-in), ensure API session re-initializes
@@ -47,11 +45,7 @@ function AuthenticatedApp() {
     }
   }, [hasToken, isAuthenticated, retryConnection]);
 
-  useEffect(() => {
-    if (profile && !profile.onboarding_completed) {
-      setShowOnboarding(true);
-    }
-  }, [profile]);
+  // Removed onboarding Q&A popup; start tutorial instead from UI
 
   // Show loading state (only while API initializes)
   if (loading) {
@@ -153,51 +147,6 @@ function AuthenticatedApp() {
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-
-            {/* Onboarding modal to collect QnA and save to Supabase */}
-            <OnboardingModal
-              open={showOnboarding}
-              onOpenChange={setShowOnboarding}
-              onComplete={async () => {
-                try {
-                  if (!api || !user) return;
-                  // Bootstrap basic budget and a goal from onboarding data
-                  const data = await getOnboardingData(user.id);
-                  if (!data) return;
-
-                  // Create categories and set current month budgets
-                  const existingCats = await api.getCategories();
-                  const now = new Date();
-                  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-
-                  for (const item of data.expense_categories || []) {
-                    const exists = (existingCats || []).find(
-                      (c: any) => (c.name || '').toLowerCase() === (item.category || '').toLowerCase()
-                    );
-                    let catId = exists?.id;
-                    if (!catId) {
-                      catId = await api.createCategory({ name: item.category, is_income: false, sort_order: 999 });
-                    }
-                    // Budget amount expects cents
-                    const amountCents = Math.round((item.amount || 0) * 100);
-                    if (amountCents > 0) {
-                      try { await api.setBudgetAmount(catId, month, amountCents); } catch {}
-                    }
-                  }
-
-                  // Create initial goal from savings
-                  const goalName = data.savings_goal || data.custom_goal || 'Starter Goal';
-                  const targetCents = Math.round((data.goal_amount || 0) * 100);
-                  if (goalName && targetCents > 0) {
-                    try {
-                      await api.createGoal({ name: goalName, target_amount: targetCents, current_amount: 0, target_date: null });
-                    } catch {}
-                  }
-                } catch (e) {
-                  // silent bootstrap errors
-                }
-              }}
-            />
           </main>
           
           {/* Mobile Bottom Navigation */}
