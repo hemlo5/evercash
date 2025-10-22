@@ -18,43 +18,18 @@ export default function Settings() {
   const { user, setUser } = useUser();
   const { user: authUser, signOut } = useAuth();
   const [nameInput, setNameInput] = useState(user?.name || '');
-  const [emailInput, setEmailInput] = useState(user?.email || '');
-  const [apiUserId, setApiUserId] = useState<string | null>(null);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
-  const googleSub = (authUser as any)?.identities?.find((i: any) => i?.provider === 'google')?.identity_data?.sub as string | undefined;
 
   // Update inputs when user changes
   useEffect(() => {
     setNameInput(user?.name || '');
-    setEmailInput(user?.email || '');
   }, [user]);
-
-  useEffect(() => {
-    const token = localStorage.getItem('actual-token');
-    if (!token) {
-      setApiUserId(null);
-      return;
-    }
-    try {
-      const enc = new TextEncoder();
-      const toHex = (buf: ArrayBuffer) => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-      (async () => {
-        const hash = await crypto.subtle.digest('SHA-256', enc.encode(token));
-        const hex = toHex(hash).slice(0, 32);
-        const uuid = `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20,32)}`;
-        setApiUserId(uuid);
-      })();
-    } catch {
-      setApiUserId(null);
-    }
-  }, [authUser]);
 
   const handleSaveProfile = () => {
     if (user) {
       setUser({
         ...user,
-        name: nameInput,
-        email: emailInput
+        name: nameInput
       });
       toast({
         title: "Profile Updated",
@@ -86,33 +61,10 @@ export default function Settings() {
               className="mt-2 bg-muted/30 border-border/50"
             />
           </div>
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              placeholder="Enter your email"
-              className="mt-2 bg-muted/30 border-border/50"
-            />
-          </div>
           <div className="grid gap-2 text-sm pt-2">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Supabase User ID</span>
-              <span className="font-mono text-xs">{authUser?.id || '—'}</span>
-            </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Google Email</span>
               <span className="font-mono text-xs">{authUser?.email || '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Google Subject (sub)</span>
-              <span className="font-mono text-xs">{googleSub || '—'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Server Data User ID</span>
-              <span className="font-mono text-xs">{apiUserId || '—'}</span>
             </div>
           </div>
         </div>
