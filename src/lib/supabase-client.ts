@@ -1,10 +1,20 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-// Supabase configuration
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Supabase configuration (graceful in prod if missing)
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export let supabase: SupabaseClient | null = null;
+try {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Supabase is not configured (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY missing). Auth features are disabled.');
+  } else {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+  }
+} catch (e) {
+  console.error('Failed to initialize Supabase client:', e);
+  supabase = null;
+}
 
 // Database types
 export interface UserProfile {
@@ -38,6 +48,7 @@ export interface ExpenseCategory {
 
 // Auth helpers
 export const signInWithGoogle = async () => {
+  if (!supabase) throw new Error('Supabase not configured');
   // Use current origin (localhost in dev, production in prod) for redirect
   const redirectUrl = window.location.origin.includes('localhost') 
     ? window.location.origin 
@@ -59,11 +70,13 @@ export const signInWithGoogle = async () => {
 };
 
 export const signOut = async () => {
+  if (!supabase) return;
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 };
 
 export const getCurrentUser = async () => {
+  if (!supabase) return null;
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error) throw error;
   return user;
@@ -71,6 +84,7 @@ export const getCurrentUser = async () => {
 
 // User profile helpers
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*')
@@ -86,6 +100,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 };
 
 export const createUserProfile = async (profile: Partial<UserProfile>): Promise<UserProfile | null> => {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('user_profiles')
     .insert([profile])
@@ -101,6 +116,7 @@ export const createUserProfile = async (profile: Partial<UserProfile>): Promise<
 };
 
 export const updateUserProfile = async (userId: string, updates: Partial<UserProfile>): Promise<UserProfile | null> => {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('user_profiles')
     .update({ ...updates, updated_at: new Date().toISOString() })
@@ -118,6 +134,7 @@ export const updateUserProfile = async (userId: string, updates: Partial<UserPro
 
 // Onboarding data helpers
 export const saveOnboardingData = async (onboardingData: Omit<OnboardingData, 'id' | 'created_at'>): Promise<OnboardingData | null> => {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('onboarding_data')
     .insert([onboardingData])
@@ -133,6 +150,7 @@ export const saveOnboardingData = async (onboardingData: Omit<OnboardingData, 'i
 };
 
 export const getOnboardingData = async (userId: string): Promise<OnboardingData | null> => {
+  if (!supabase) return null;
   const { data, error } = await supabase
     .from('onboarding_data')
     .select('*')

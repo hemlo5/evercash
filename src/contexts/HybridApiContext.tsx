@@ -23,7 +23,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       const baseUrl = import.meta.env.DEV
         ? '/api'
-        : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5006');
+        : (import.meta.env.VITE_API_BASE_URL || 'https://api.evercash.in');
       console.log('🔄 Initializing Hybrid API (Actual Budget + Supabase):', baseUrl);
       
       const apiInstance = await initHybridAPI(baseUrl);

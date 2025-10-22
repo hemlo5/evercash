@@ -52,39 +52,43 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (isMounted) setLoading(false);
     }, 4000);
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!isMounted) return;
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        if (event === 'SIGNED_IN') {
-          try { localStorage.setItem('actual-token', `supabase-${session.user.id}`); } catch {}
+    // If Supabase isn't configured, skip auth listener
+    let subscription: { unsubscribe: () => void } | null = null;
+    if (supabase) {
+      const sub = supabase.auth.onAuthStateChange(async (event, session) => {
+        if (!isMounted) return;
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          if (event === 'SIGNED_IN') {
+            try { localStorage.setItem('actual-token', `supabase-${session.user.id}`); } catch {}
+          }
+          await fetchProfile(session.user.id);
+        } else {
+          setProfile(null);
         }
-        await fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-      }
-    });
+      });
+      subscription = sub.data.subscription;
+    }
 
     // Initial session check, always end loading
     (async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.warn('Supabase getSession error:', error);
-        }
-        if (!isMounted) return;
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          // On boot, if session exists and app token missing, set it so returning users skip Landing
-          try {
-            if (!localStorage.getItem('actual-token')) {
-              localStorage.setItem('actual-token', `supabase-${session.user.id}`);
-            }
-          } catch {}
-          await fetchProfile(session.user.id);
+        if (supabase) {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) {
+            console.warn('Supabase getSession error:', error);
+          }
+          if (!isMounted) return;
+          setUser(session?.user ?? null);
+          if (session?.user) {
+            // On boot, if session exists and app token missing, set it so returning users skip Landing
+            try {
+              if (!localStorage.getItem('actual-token')) {
+                localStorage.setItem('actual-token', `supabase-${session.user.id}`);
+              }
+            } catch {}
+            await fetchProfile(session.user.id);
+          }
         }
       } catch (err) {
         console.warn('Supabase getSession failed:', err);
@@ -97,7 +101,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => {
       isMounted = false;
       clearTimeout(fallback);
-      subscription.unsubscribe();
+      if (subscription) subscription.unsubscribe();
     };
   }, []);
 
