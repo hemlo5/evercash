@@ -49,6 +49,8 @@ export default function Transactions() {
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isRecategorizing, setIsRecategorizing] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const creatingRef = useRef(false);
   const [recatProcessed, setRecatProcessed] = useState(0);
   const [recatTotal, setRecatTotal] = useState(0);
   const [recatUpdated, setRecatUpdated] = useState(0);
@@ -100,8 +102,10 @@ export default function Transactions() {
   };
 
   const handleCreateTransaction = async () => {
-    if (!api) return;
+    if (!api || creatingRef.current) return;
     try {
+      creatingRef.current = true;
+      setIsCreating(true);
       // Sanitize inputs
       const sanitizedPayee = sanitizeInput(formData.payee);
       const sanitizedNotes = sanitizeNotes(formData.notes);
@@ -139,6 +143,9 @@ export default function Transactions() {
     } catch (error) {
       console.error("Error creating transaction:", error);
       toast.error("❌ Failed to create transaction");
+    } finally {
+      setIsCreating(false);
+      creatingRef.current = false;
     }
   };
 
@@ -817,8 +824,15 @@ export default function Transactions() {
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreateTransaction}>
-              Add Transaction
+            <Button onClick={handleCreateTransaction} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>Add Transaction</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
