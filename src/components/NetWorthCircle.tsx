@@ -60,7 +60,7 @@ export function NetWorthCircle({ netWorth, target, surplusDeficit, editingTarget
               className={`text-4xl font-bold hover:scale-105 transition-transform cursor-pointer ${
                 theme === 'dark' 
                   ? 'text-green-400 [text-shadow:_0_0_20px_rgba(34,197,94,0.6)]' 
-                  : 'text-white [text-shadow:_1px_1px_0_#000,_-1px_1px_0_#000,_1px_-1px_0_#000,_-1px_-1px_0_#000]'
+                  : 'text-green-700'
               }`}
               title="Click to edit target"
             >
