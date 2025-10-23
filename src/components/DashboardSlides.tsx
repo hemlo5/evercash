@@ -188,7 +188,16 @@ export function DashboardSlides({ transactions, accounts }: DashboardSlidesProps
                 <AreaChart data={pacingSeries}>
                   <XAxis dataKey="day" hide />
                   <YAxis hide />
-                  <Tooltip formatter={(v: any) => [formatAmount(v as number), ""]} />
+                  <Tooltip 
+                    formatter={(v: any) => [formatAmount(v as number), ""]}
+                    contentStyle={{
+                      backgroundColor: theme === 'dark' ? '#1F2937' : '#FFFFFF',
+                      border: theme === 'dark' ? '1px solid #374151' : '1px solid #E5E7EB',
+                      borderRadius: '8px',
+                      color: theme === 'dark' ? '#F9FAFB' : '#111827'
+                    }}
+                    labelStyle={{ color: theme === 'dark' ? '#D1D5DB' : '#6B7280' }}
+                  />
                   <Area type="monotone" dataKey="actual" stroke={gaugeColor} fill={gaugeColor} fillOpacity={0.2} isAnimationActive />
                   <Line type="monotone" dataKey="expected" stroke={theme === 'dark' ? '#94A3B8' : '#64748B'} strokeDasharray="4 4" dot={false} isAnimationActive />
                 </AreaChart>
@@ -215,7 +224,16 @@ export function DashboardSlides({ transactions, accounts }: DashboardSlidesProps
               <AreaChart data={dailySeries}>
                 <XAxis dataKey="date" hide />
                 <YAxis hide />
-                <Tooltip formatter={(v: any) => [formatAmount(v as number), "Spent"]} />
+                <Tooltip 
+                  formatter={(v: any) => [formatAmount(v as number), "Spent"]}
+                  contentStyle={{
+                    backgroundColor: theme === 'dark' ? '#1F2937' : '#FFFFFF',
+                    border: theme === 'dark' ? '1px solid #374151' : '1px solid #E5E7EB',
+                    borderRadius: '8px',
+                    color: theme === 'dark' ? '#F9FAFB' : '#111827'
+                  }}
+                  labelStyle={{ color: theme === 'dark' ? '#D1D5DB' : '#6B7280' }}
+                />
                 <Area
                   type="monotone"
                   dataKey="amount"
