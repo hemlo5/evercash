@@ -29,6 +29,7 @@ import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
 import Logout from "./pages/Logout";
 import { Loader2 } from "lucide-react";
+import { trackPageView } from "@/lib/analytics";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,9 @@ function AuthenticatedApp() {
   // Helper inside Router to hide hamburger on Dashboard (now included in Dashboard header)
   const MobileButtonConditional = () => {
     const location = useLocation();
+    useEffect(() => {
+      trackPageView(location.pathname, document.title);
+    }, [location.pathname]);
     if (location.pathname === "/") {
       // On Dashboard, hamburger is included in the header directly
       return null;
