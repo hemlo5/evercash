@@ -6,8 +6,19 @@ const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || '';
 
-// Create Supabase client (use service key for server-side operations)
+// Create Supabase admin client (service role) for admin/server-only operations
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Create a per-user client that will enforce RLS using the provided JWT
+function getUserClient(userAccessToken) {
+  return createClient(supabaseUrl, supabaseKey, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${userAccessToken}`,
+      },
+    },
+  });
+}
 
 // Database Schema Creation SQL
 const createTablesSQL = `
@@ -118,9 +129,9 @@ CREATE INDEX IF NOT EXISTS idx_budget_month ON budget(month);
 // Initialize database schema function
 async function initializeDatabase() {
   try {
-    // Test connection by trying to select from users table
+    // Test connection by trying to select from a domain table
     const { error } = await supabase
-      .from('users')
+      .from('transactions')
       .select('id')
       .limit(1);
     
@@ -141,21 +152,21 @@ async function initializeDatabase() {
 
 // Database helper functions
 class SupabaseDB {
-  constructor() {
-    this.client = supabase;
+  constructor(client = null) {
+    this.client = client || supabase;
   }
 
   // Ensure a user row exists for the provided userId
-  async ensureUserExists(userId) {
+  async ensureUserExists(userId, email = null) {
     try {
-      const email = `demo+${userId}@emeraldbudget.local`;
+      const emailToUse = email || `demo+${userId}@emeraldbudget.local`;
       const password_hash = 'demo'; // placeholder; not used for login in dev/demo
 
       // Use UPSERT to avoid race conditions on concurrent requests
       const { error: upsertError } = await this.client
         .from('users')
         .upsert(
-          [{ id: userId, email, password_hash }],
+          [{ id: userId, email: emailToUse, password_hash }],
           { onConflict: 'id', ignoreDuplicates: false }
         );
       if (upsertError && upsertError.code !== '23505') {
@@ -552,16 +563,22 @@ class SupabaseDB {
 
   // Budget operations (temporary - using categories table)
   async setBudgetAmount(userId, categoryId, month, amountCents) {
+    const monthDate = `${month}-01`;
     const { data, error } = await this.client
-      .from('categories')
-      .update({
-        budget_amount: amountCents
-      })
-      .eq('id', categoryId)
-      .eq('user_id', userId)
+      .from('budget')
+      .upsert(
+        [{
+          user_id: userId,
+          category_id: categoryId,
+          month: monthDate,
+          budgeted: amountCents,
+          updated_at: new Date()
+        }],
+        { onConflict: 'user_id,category_id,month' }
+      )
       .select()
       .single();
-    
+
     if (error) {
       console.error('Error setting budget amount:', error);
       throw error;
@@ -570,16 +587,17 @@ class SupabaseDB {
   }
 
   async getBudgetAmounts(userId, month) {
+    const monthDate = `${month}-01`;
     const { data, error } = await this.client
-      .from('categories')
-      .select('id, budget_amount')
-      .eq('user_id', userId);
-    
+      .from('budget')
+      .select('category_id, budgeted')
+      .eq('user_id', userId)
+      .eq('month', monthDate);
+
     if (error) throw error;
-    // Transform to match expected format
-    return (data || []).map(cat => ({
-      category_id: cat.id,
-      amount: cat.budget_amount || 0
+    return (data || []).map(row => ({
+      category_id: row.category_id,
+      amount: row.budgeted || 0
     }));
   }
 
@@ -754,5 +772,6 @@ module.exports = {
   supabase,
   SupabaseDB,
   initializeDatabase,
-  createTablesSQL
+  createTablesSQL,
+  getUserClient
 };

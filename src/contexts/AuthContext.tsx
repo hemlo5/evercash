@@ -59,8 +59,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (!isMounted) return;
         setUser(session?.user ?? null);
         if (session?.user) {
-          if (event === 'SIGNED_IN') {
-            try { localStorage.setItem('actual-token', `supabase-${session.user.id}`); } catch {}
+          if (event === 'SIGNED_IN' && session?.access_token) {
+            try { localStorage.setItem('actual-token', session.access_token); } catch {}
           }
           await fetchProfile(session.user.id);
         } else {
@@ -81,10 +81,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           if (!isMounted) return;
           setUser(session?.user ?? null);
           if (session?.user) {
-            // On boot, if session exists and app token missing, set it so returning users skip Landing
+            // On boot, store the real access token for server Authorization header
             try {
-              if (!localStorage.getItem('actual-token')) {
-                localStorage.setItem('actual-token', `supabase-${session.user.id}`);
+              if (session?.access_token) {
+                localStorage.setItem('actual-token', session.access_token);
               }
             } catch {}
             await fetchProfile(session.user.id);

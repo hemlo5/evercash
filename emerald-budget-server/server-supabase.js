@@ -15,8 +15,7 @@ const pdfParse = require('pdf-parse');
 require('dotenv').config();
 
 // Import Supabase configuration
-const { SupabaseDB, initializeDatabase } = require('./supabase-config');
-const db = new SupabaseDB();
+const { SupabaseDB, initializeDatabase, getUserClient, supabase } = require('./supabase-config');
 
 // Import security configuration
 const {
@@ -122,64 +121,25 @@ async function initializeServer() {
 const authenticateUser = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   console.log('🔍 Auth check - Authorization header:', authHeader ? `${authHeader.substring(0, 30)}...` : 'null');
-  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     console.log('❌ Auth failed - No Bearer token found');
-    return res.status(401).json({
-      status: 'error',
-      reason: 'unauthorized',
-      details: 'token-not-found'
-    });
+    return res.status(401).json({ status: 'error', reason: 'unauthorized', details: 'token-not-found' });
   }
-  
   const token = authHeader.substring(7);
 
-  // If a static user id is configured, always use it (development convenience)
-  if (FORCE_USER_ID) {
-    req.user = { id: FORCE_USER_ID, token };
-    console.log('🔐 Using DEV_STATIC_USER_ID for all requests:', FORCE_USER_ID);
-    return next();
-  }
-  
-  // For demo purposes, accept any token that starts with 'demo-token-'
-  if (token.startsWith('demo-token-')) {
-    // Create unique user ID based on token to separate users
-    const crypto = require('crypto');
-    const uniqueUserId = crypto.createHash('sha256').update(token).digest('hex').substring(0, 32);
-    const formattedUserId = `${uniqueUserId.substring(0, 8)}-${uniqueUserId.substring(8, 12)}-${uniqueUserId.substring(12, 16)}-${uniqueUserId.substring(16, 20)}-${uniqueUserId.substring(20, 32)}`;
-    // Ensure the user exists in Supabase so FK constraints don't fail
-    try {
-      await db.ensureUserExists(formattedUserId);
-    } catch (e) {
-      console.error('❌ Failed ensuring user exists:', e);
-      return res.status(500).json({ status: 'error', message: 'Failed to ensure user exists' });
+  try {
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) {
+      console.log('❌ Supabase JWT verification failed');
+      return res.status(401).json({ status: 'error', reason: 'unauthorized', details: 'invalid-token' });
     }
-    req.user = { id: formattedUserId, token };
-    console.log('✅ Auth success - Demo token accepted, user ID:', formattedUserId);
+    req.user = { id: data.user.id, email: data.user.email, token };
+    req.db = new SupabaseDB(getUserClient(token));
     return next();
+  } catch (e) {
+    console.error('❌ Auth verify error:', e);
+    return res.status(401).json({ status: 'error', reason: 'unauthorized', details: 'verification-error' });
   }
-  
-  // Also accept any token for development
-  if (token && token.length > 5) {
-    // Create unique user ID based on token to separate users
-    const crypto = require('crypto');
-    const uniqueUserId = crypto.createHash('sha256').update(token).digest('hex').substring(0, 32);
-    const formattedUserId = `${uniqueUserId.substring(0, 8)}-${uniqueUserId.substring(8, 12)}-${uniqueUserId.substring(12, 16)}-${uniqueUserId.substring(16, 20)}-${uniqueUserId.substring(20, 32)}`;
-    try {
-      await db.ensureUserExists(formattedUserId);
-    } catch (e) {
-      console.error('❌ Failed ensuring user exists:', e);
-      return res.status(500).json({ status: 'error', message: 'Failed to ensure user exists' });
-    }
-    req.user = { id: formattedUserId, token };
-    console.log('✅ Auth success - Dev token accepted, user ID:', formattedUserId);
-    return next();
-  }
-  
-  return res.status(401).json({
-    status: 'error',
-    message: 'Invalid token'
-  });
 };
 
 app.get('/', (req, res) => {
@@ -193,67 +153,6 @@ app.get('/', (req, res) => {
 });
 
 // Authentication endpoints
-app.post('/account/login', authLimiter, async (req, res) => {
-  try {
-    const { password } = req.body;
-    
-    if (!password) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Password is required'
-      });
-    }
-
-    // For demo purposes, we'll use a simple email
-    const email = 'user@emeraldbudget.com';
-    
-    // Check if user exists
-    let user = await db.getUserByEmail(email);
-    
-    if (!user) {
-      // First time setup - create user
-      console.log('🔐 First time setup - creating user...');
-      const hashedPassword = await bcrypt.hash(password, 12);
-      user = await db.createUser(email, hashedPassword);
-      
-      // Create default categories
-      await createDefaultCategories(user.id);
-    }
-    
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    
-    if (isValidPassword) {
-      const token = crypto.randomBytes(32).toString('hex');
-      await db.updateUserToken(user.id, token);
-      
-      // Store current user
-      currentUser = { ...user, token };
-      
-      console.log('✅ User authenticated successfully');
-      res.json({
-        status: 'ok',
-        data: { 
-          token: token,
-          message: '🔐 Login successful' 
-        }
-      });
-    } else {
-      console.log('❌ Invalid password');
-      res.status(401).json({
-        status: 'error',
-        message: 'Invalid password'
-      });
-    }
-    
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'An error occurred during login'
-    });
-  }
-});
 
 // Create default categories for new users
 async function createDefaultCategories(userId) {
@@ -281,7 +180,7 @@ async function createDefaultCategories(userId) {
 // Accounts endpoints
 app.get('/accounts', authenticateUser, async (req, res) => {
   try {
-    const accounts = await db.getAccounts(req.user.id);
+    const accounts = await req.db.getAccounts(req.user.id);
     res.json(accounts);
   } catch (error) {
     console.error('Error fetching accounts:', error);
@@ -292,7 +191,7 @@ app.get('/accounts', authenticateUser, async (req, res) => {
 
 app.post('/accounts', authenticateUser, async (req, res) => {
   try {
-    const account = await db.createAccount(req.user.id, req.body);
+    const account = await req.db.createAccount(req.user.id, req.body);
     res.json({ status: 'ok', data: account });
   } catch (error) {
     console.error('Error creating account:', error);
@@ -302,7 +201,7 @@ app.post('/accounts', authenticateUser, async (req, res) => {
 
 app.put('/accounts/:id', authenticateUser, async (req, res) => {
   try {
-    const account = await db.updateAccount(req.params.id, req.body);
+    const account = await req.db.updateAccount(req.params.id, req.body);
     res.json({ status: 'ok', data: account });
   } catch (error) {
     console.error('Error updating account:', error);
@@ -314,7 +213,7 @@ app.put('/accounts/:id', authenticateUser, async (req, res) => {
 app.get('/transactions', authenticateUser, async (req, res) => {
   try {
     const { account } = req.query;
-    const transactions = await db.getTransactions(req.user.id, account);
+    const transactions = await req.db.getTransactions(req.user.id, account);
     res.json(transactions);
   } catch (error) {
     console.error('Error fetching transactions:', error);
@@ -325,7 +224,7 @@ app.get('/transactions', authenticateUser, async (req, res) => {
 
 app.post('/transactions', authenticateUser, async (req, res) => {
   try {
-    const transaction = await db.createTransaction(req.user.id, req.body);
+    const transaction = await req.db.createTransaction(req.user.id, req.body);
     res.json({ status: 'ok', data: transaction });
   } catch (error) {
     console.error('Error creating transaction:', error);
@@ -335,7 +234,7 @@ app.post('/transactions', authenticateUser, async (req, res) => {
 
 app.put('/transactions/:id', authenticateUser, async (req, res) => {
   try {
-    const transaction = await db.updateTransaction(req.params.id, req.body);
+    const transaction = await req.db.updateTransaction(req.params.id, req.body);
     res.json({ status: 'ok', data: transaction });
   } catch (error) {
     console.error('Error updating transaction:', error);
@@ -357,7 +256,7 @@ app.delete('/transactions/bulk-delete', authenticateUser, async (req, res) => {
       return res.status(401).json({ status: 'error', message: 'User not authenticated' });
     }
     
-    const deletedCount = await db.deleteAllTransactions(req.user.id);
+    const deletedCount = await req.db.deleteAllTransactions(req.user.id);
     console.log('✅ Successfully deleted', deletedCount, 'transactions');
     res.json({ status: 'ok', message: `${deletedCount} transactions deleted successfully` });
   } catch (error) {
@@ -370,7 +269,7 @@ app.delete('/transactions/bulk-delete', authenticateUser, async (req, res) => {
 
 app.delete('/transactions/:id', authenticateUser, async (req, res) => {
   try {
-    await db.deleteTransaction(req.params.id);
+    await req.db.deleteTransaction(req.params.id);
     res.json({ status: 'ok', message: 'Transaction deleted successfully' });
   } catch (error) {
     console.error('Error deleting transaction:', error);
@@ -382,7 +281,7 @@ app.delete('/transactions/:id', authenticateUser, async (req, res) => {
 app.post('/budgets/set-amount', authenticateUser, async (req, res) => {
   try {
     const { categoryId, month, amount } = req.body;
-    const budget = await db.setBudgetAmount(req.user.id, categoryId, month, amount);
+    const budget = await req.db.setBudgetAmount(req.user.id, categoryId, month, amount);
     res.json({ status: 'ok', data: budget });
   } catch (error) {
     console.error('Error setting budget amount:', error);
@@ -392,7 +291,7 @@ app.post('/budgets/set-amount', authenticateUser, async (req, res) => {
 
 app.get('/budgets/:month', authenticateUser, async (req, res) => {
   try {
-    const budgets = await db.getBudgetAmounts(req.user.id, req.params.month);
+    const budgets = await req.db.getBudgetAmounts(req.user.id, req.params.month);
     res.json(budgets);
   } catch (error) {
     console.error('Error fetching budget amounts:', error);
@@ -403,7 +302,7 @@ app.get('/budgets/:month', authenticateUser, async (req, res) => {
 // Goals endpoints
 app.get('/goals', authenticateUser, async (req, res) => {
   try {
-    const goals = await db.getGoals(req.user.id);
+    const goals = await req.db.getGoals(req.user.id);
     res.json(goals);
   } catch (error) {
     console.error('Error fetching goals:', error);
@@ -413,7 +312,7 @@ app.get('/goals', authenticateUser, async (req, res) => {
 
 app.post('/goals', authenticateUser, async (req, res) => {
   try {
-    const goal = await db.createGoal(req.user.id, req.body);
+    const goal = await req.db.createGoal(req.user.id, req.body);
     res.json({ status: 'ok', data: goal });
   } catch (error) {
     console.error('Error creating goal:', error);
@@ -423,7 +322,7 @@ app.post('/goals', authenticateUser, async (req, res) => {
 
 app.put('/goals/:id', authenticateUser, async (req, res) => {
   try {
-    const goal = await db.updateGoal(req.user.id, req.params.id, req.body);
+    const goal = await req.db.updateGoal(req.user.id, req.params.id, req.body);
     res.json({ status: 'ok', data: goal });
   } catch (error) {
     console.error('Error updating goal:', error);
@@ -433,7 +332,7 @@ app.put('/goals/:id', authenticateUser, async (req, res) => {
 
 app.delete('/goals/:id', authenticateUser, async (req, res) => {
   try {
-    await db.deleteGoal(req.user.id, req.params.id);
+    await req.db.deleteGoal(req.user.id, req.params.id);
     res.json({ status: 'ok', message: 'Goal deleted successfully' });
   } catch (error) {
     console.error('Error deleting goal:', error);
@@ -444,7 +343,7 @@ app.delete('/goals/:id', authenticateUser, async (req, res) => {
 // Categories endpoints
 app.get('/categories', authenticateUser, async (req, res) => {
   try {
-    const categories = await db.getCategories(req.user.id);
+    const categories = await req.db.getCategories(req.user.id);
     res.json(categories);
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -455,7 +354,7 @@ app.get('/categories', authenticateUser, async (req, res) => {
 
 app.post('/categories', authenticateUser, async (req, res) => {
   try {
-    const category = await db.createCategory(req.user.id, req.body);
+    const category = await req.db.createCategory(req.user.id, req.body);
     res.json({ status: 'ok', data: category });
   } catch (error) {
     console.error('Error creating category:', error);
@@ -479,7 +378,7 @@ app.get('/payees', authenticateUser, async (req, res) => {
 app.get('/budget/:month', authenticateUser, async (req, res) => {
   try {
     const { month } = req.params;
-    const budget = await db.getBudgetMonth(req.user.id, `${month}-01`);
+    const budget = await req.db.getBudgetMonth(req.user.id, `${month}-01`);
     res.json(budget);
   } catch (error) {
     console.error('Error fetching budget:', error);
@@ -598,10 +497,10 @@ app.post('/import-transactions', authenticateUser, upload.single('file'), async 
         // Create payee if it doesn't exist
         let payee = null;
         try {
-          const existingPayees = await db.getPayees(req.user.id);
+          const existingPayees = await req.db.getPayees(req.user.id);
           payee = existingPayees.find(p => p.name === description);
           if (!payee) {
-            payee = await db.createPayee(req.user.id, description);
+            payee = await req.db.createPayee(req.user.id, description);
           }
         } catch (error) {
           console.warn('Failed to create payee:', error.message);
@@ -633,7 +532,7 @@ app.post('/import-transactions', authenticateUser, upload.single('file'), async 
     }
 
     // Save transactions to Supabase
-    const savedTransactions = await db.createTransactions(req.user.id, transactions);
+    const savedTransactions = await req.db.createTransactions(req.user.id, transactions);
     
     console.log(`✅ Successfully imported ${savedTransactions.length} transactions to Supabase`);
     

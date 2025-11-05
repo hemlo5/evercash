@@ -90,6 +90,12 @@ export class SupabaseAPI {
       console.warn('⚠️ No token found in localStorage!');
     }
 
+    // If sending FormData, let the browser set the correct multipart boundary
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    if (isFormData) {
+      delete headers['Content-Type'];
+    }
+
     const response = await fetch(url, {
       ...options,
       headers,
@@ -366,10 +372,6 @@ export class SupabaseAPI {
     const response = await this.request('/import-transactions', {
       method: 'POST',
       body: formData,
-      headers: {
-        // Don't set Content-Type for FormData
-        'Authorization': `Bearer ${this.token}`,
-      },
     });
 
     this.invalidateCache(['transactions:all', `transactions:account:${accountId}`, 'accounts']);
