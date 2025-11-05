@@ -83,9 +83,12 @@ export class SupabaseAPI {
     // Get fresh token each time
     const token = localStorage.getItem('actual-token');
     console.log('🔑 Token from localStorage:', token ? `${token.substring(0, 20)}...` : 'null');
-    if (token) {
+    const isJwt = !!token && /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token);
+    if (isJwt && token) {
       headers['Authorization'] = `Bearer ${token}`;
       console.log('🔐 Authorization header set:', `Bearer ${token.substring(0, 20)}...`);
+    } else if (token) {
+      console.warn('⚠️ Ignoring malformed token (not a JWT)');
     } else {
       console.warn('⚠️ No token found in localStorage!');
     }

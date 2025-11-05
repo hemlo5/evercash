@@ -267,43 +267,38 @@ class SupabaseDB {
   async getTransactions(userId, accountId = null) {
     console.log('🔍 Getting transactions for user ID:', userId);
     
-    // Check if we need to migrate transactions from old user ID
-    const { data: oldTransactions } = await this.client
-      .from('transactions')
-      .select('id')
-      .eq('user_id', '00000000-0000-0000-0000-000000000001')
-      .limit(1);
-    
-    if (oldTransactions?.length > 0) {
-      console.log('🔄 Migrating transactions from old user ID to current user ID...');
-      
-      // Update all transactions, accounts, categories, payees, and goals to current user
-      await this.client
+    // Optional legacy migration for bootstrapped data (disabled by default)
+    const enableLegacyMigration = process.env.ENABLE_LEGACY_USER_MIGRATION === 'true';
+    if (enableLegacyMigration) {
+      const { data: oldTransactions } = await this.client
         .from('transactions')
-        .update({ user_id: userId })
-        .eq('user_id', '00000000-0000-0000-0000-000000000001');
-        
-      await this.client
-        .from('accounts')
-        .update({ user_id: userId })
-        .eq('user_id', '00000000-0000-0000-0000-000000000001');
-        
-      await this.client
-        .from('categories')
-        .update({ user_id: userId })
-        .eq('user_id', '00000000-0000-0000-0000-000000000001');
-        
-      await this.client
-        .from('payees')
-        .update({ user_id: userId })
-        .eq('user_id', '00000000-0000-0000-0000-000000000001');
-        
-      await this.client
-        .from('goals')
-        .update({ user_id: userId })
-        .eq('user_id', '00000000-0000-0000-0000-000000000001');
-      
-      console.log('✅ Migration completed! All data now belongs to current user.');
+        .select('id')
+        .eq('user_id', '00000000-0000-0000-0000-000000000001')
+        .limit(1);
+      if (oldTransactions?.length > 0) {
+        console.log('🔄 Migrating transactions from old user ID to current user ID...');
+        await this.client
+          .from('transactions')
+          .update({ user_id: userId })
+          .eq('user_id', '00000000-0000-0000-0000-000000000001');
+        await this.client
+          .from('accounts')
+          .update({ user_id: userId })
+          .eq('user_id', '00000000-0000-0000-0000-000000000001');
+        await this.client
+          .from('categories')
+          .update({ user_id: userId })
+          .eq('user_id', '00000000-0000-0000-0000-000000000001');
+        await this.client
+          .from('payees')
+          .update({ user_id: userId })
+          .eq('user_id', '00000000-0000-0000-0000-000000000001');
+        await this.client
+          .from('goals')
+          .update({ user_id: userId })
+          .eq('user_id', '00000000-0000-0000-0000-000000000001');
+        console.log('✅ Migration completed! All data now belongs to current user.');
+      }
     }
     
     let query = this.client

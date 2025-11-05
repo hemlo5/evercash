@@ -1,17 +1,20 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase-client';
 
 export function AuthCallback() {
-  const navigate = useNavigate();
-
   useEffect(() => {
-    // Redirect to home after successful auth
-    // The AuthContext will handle the user session
-    setTimeout(() => {
-      navigate('/', { replace: true });
-    }, 1000);
-  }, [navigate]);
+    (async () => {
+      try {
+        if (supabase) {
+          await supabase.auth.exchangeCodeForSession(window.location.href);
+        }
+      } catch (e) {}
+      try {
+        window.location.replace('/');
+      } catch {}
+    })();
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100 dark:from-gray-900 dark:to-gray-800">

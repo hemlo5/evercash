@@ -126,6 +126,9 @@ const authenticateUser = async (req, res, next) => {
     return res.status(401).json({ status: 'error', reason: 'unauthorized', details: 'token-not-found' });
   }
   const token = authHeader.substring(7);
+  if (!/^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token)) {
+    return res.status(401).json({ status: 'error', reason: 'unauthorized', details: 'invalid-token-format' });
+  }
 
   try {
     const { data, error } = await supabase.auth.getUser(token);

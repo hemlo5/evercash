@@ -29,18 +29,20 @@ export function ApiProvider({ children }: { children: ReactNode }) {
       const apiInstance = await initHybridAPI(baseUrl);
       setApi(apiInstance);
       
-      // Authenticate only if token already exists
+      // Authenticate only if a real JWT exists AND an authenticated call succeeds
       try {
         const token = localStorage.getItem('actual-token');
-        if (token) {
-          const version = await apiInstance.getServerVersion();
+        const isJwt = !!token && /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$/.test(token);
+        if (isJwt) {
+          // Authenticated endpoint (requires valid JWT)
+          await apiInstance.getAccounts();
           setIsAuthenticated(true);
-          console.log('✅ Auto-authenticated with hybrid API. Server version:', version);
+          console.log('✅ Authenticated with hybrid API using JWT');
         } else {
           setIsAuthenticated(false);
         }
       } catch (err) {
-        console.warn('❌ Auto-authentication failed, user needs to login', err);
+        console.warn('❌ Authentication check failed, user needs to login', err);
         setIsAuthenticated(false);
       }
       
